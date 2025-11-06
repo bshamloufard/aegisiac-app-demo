@@ -17,17 +17,15 @@ export function TabBar({ tabs, activeTab, onTabChange, onTabClose }) {
           <span className="flex-1 truncate text-sm">
             {tab.name}
           </span>
-          {tabs.length > 1 && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation()
-                onTabClose(tab.id)
-              }}
-              className="hover:bg-accent rounded p-0.5 transition-colors"
-            >
-              <X className="w-3 h-3" />
-            </button>
-          )}
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              onTabClose(tab.id)
+            }}
+            className="hover:bg-accent rounded p-0.5 transition-colors"
+          >
+            <X className="w-3 h-3" />
+          </button>
         </div>
       ))}
     </div>

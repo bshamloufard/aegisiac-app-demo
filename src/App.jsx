@@ -7,10 +7,10 @@ import { JournalPage } from './pages/JournalPage'
 import './App.css'
 
 function App() {
-  const [activeView, setActiveView] = useState('data')
+  const [activeView, setActiveView] = useState(null)
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
-  const [tabs, setTabs] = useState([{ id: 1, name: 'Data', type: 'data' }])
-  const [activeTab, setActiveTab] = useState(1)
+  const [tabs, setTabs] = useState([])
+  const [activeTab, setActiveTab] = useState(null)
 
   // Handle navigation from sidebar - creates new tab if needed or switches to existing one
   const handleViewChange = (view) => {
@@ -43,11 +43,16 @@ function App() {
   const handleTabClose = (tabId) => {
     const newTabs = tabs.filter(t => t.id !== tabId)
     setTabs(newTabs)
-
-    if (activeTab === tabId && newTabs.length > 0) {
-      const lastTab = newTabs[newTabs.length - 1]
-      setActiveTab(lastTab.id)
-      setActiveView(lastTab.type)
+    
+    if (activeTab === tabId) {
+      if (newTabs.length > 0) {
+        const lastTab = newTabs[newTabs.length - 1]
+        setActiveTab(lastTab.id)
+        setActiveView(lastTab.type)
+      } else {
+        setActiveTab(null)
+        setActiveView(null)
+      }
     }
   }
 
@@ -60,13 +65,28 @@ function App() {
         onToggle={() => setIsSidebarOpen(!isSidebarOpen)}
       />
       <div className="flex-1 flex flex-col overflow-hidden">
-        <TabBar
-          tabs={tabs}
-          activeTab={activeTab}
-          onTabChange={handleTabChange}
-          onTabClose={handleTabClose}
-        />
+        {tabs.length > 0 && (
+          <TabBar 
+            tabs={tabs}
+            activeTab={activeTab}
+            onTabChange={handleTabChange}
+            onTabClose={handleTabClose}
+          />
+        )}
         <main className="flex-1 overflow-y-auto bg-background">
+          {!activeView && (
+            <div className="flex items-center justify-center h-full">
+              <div className="text-center space-y-4 max-w-md px-6">
+                <div className="text-6xl mb-4">📋</div>
+                <h2 className="text-2xl font-semibold text-foreground">
+                  Your workspace is empty
+                </h2>
+                <p className="text-muted-foreground">
+                  Get started by selecting an option from the navigation panel on the left to create or view your content.
+                </p>
+              </div>
+            </div>
+          )}
           {activeView === 'data' && <DataPage />}
           {activeView === 'analytics' && <AnalyticsPage />}
           {activeView === 'journal' && <JournalPage />}
