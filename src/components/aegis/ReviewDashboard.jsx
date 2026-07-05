@@ -20,7 +20,7 @@ import {
   Wand2,
   X,
 } from 'lucide-react'
-import { createElement, useState } from 'react'
+import { createElement, useEffect, useState } from 'react'
 import { insights, mitigationSteps, resources, versions } from './reviewData'
 
 const resourceIcons = {
@@ -44,6 +44,18 @@ const views = [
 export function ReviewDashboard() {
   const [view, setView] = useState('environment')
   const [version, setVersion] = useState(versions[0])
+
+  useEffect(() => {
+    const resetRootView = () => {
+      if (!window.location.hash) {
+        setView('environment')
+      }
+    }
+
+    resetRootView()
+    window.addEventListener('pageshow', resetRootView)
+    return () => window.removeEventListener('pageshow', resetRootView)
+  }, [])
 
   return (
     <div className="h-dvh overflow-hidden bg-[#111916] text-zinc-100">
