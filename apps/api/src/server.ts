@@ -333,25 +333,48 @@ async function resolveShortPrRefTarget(ref: string): Promise<{
   pullRequest: number;
   shortRef: string;
   sha?: string | undefined;
+  pr?: Record<string, unknown> | undefined;
 }> {
   const parsedRef = parseShortPrRef(ref);
   const token = process.env.ISENGARD_GITHUB_TOKEN ?? process.env.GITHUB_TOKEN;
   let sha = parsedRef.shaPrefix;
+  let pr: Record<string, unknown> | undefined;
 
   if (token) {
-    sha = await resolvePullRequestHeadSha(
-      new Octokit({ auth: token }),
-      parsedRef.repository,
-      parsedRef.pullRequest,
-      parsedRef.shaPrefix
-    );
+    const octokit = new Octokit({ auth: token });
+    const { owner, repo } = parseRepositoryFullName(parsedRef.repository);
+    const pull = await octokit.rest.pulls.get({
+      owner,
+      repo,
+      pull_number: parsedRef.pullRequest
+    });
+    const headSha = pull.data.head.sha;
+
+    if (parsedRef.shaPrefix && !headSha.startsWith(parsedRef.shaPrefix.toLowerCase())) {
+      throw new Error("Short SHA no longer matches the current pull request head.");
+    }
+
+    sha = headSha;
+    pr = {
+      title: pull.data.title,
+      state: pull.data.state,
+      draft: pull.data.draft,
+      htmlUrl: pull.data.html_url,
+      headRef: pull.data.head.ref,
+      baseRef: pull.data.base.ref,
+      author: pull.data.user?.login,
+      additions: pull.data.additions,
+      deletions: pull.data.deletions,
+      changedFiles: pull.data.changed_files
+    };
   }
 
   return {
     repository: parsedRef.repository,
     pullRequest: parsedRef.pullRequest,
     shortRef: shortRefFor(parsedRef.repository, parsedRef.pullRequest, sha),
-    sha
+    sha,
+    pr
   };
 }
 
