@@ -51,9 +51,35 @@ const impactRows = [
   ['Performance', 'Low'],
 ]
 
+const defaultGateTarget = {
+  repository: 'bshamloufard/aegisiac-demo-actions-wall',
+  pullRequest: '1',
+  sha: '',
+  run: '',
+}
+
+function readGateTarget() {
+  if (typeof window === 'undefined') {
+    return defaultGateTarget
+  }
+
+  const params = new URLSearchParams(window.location.search)
+  return {
+    repository: params.get('repo') || defaultGateTarget.repository,
+    pullRequest: params.get('pr') || defaultGateTarget.pullRequest,
+    sha: params.get('sha') || defaultGateTarget.sha,
+    run: params.get('run') || defaultGateTarget.run,
+  }
+}
+
+function githubPullRequestUrl(target) {
+  return `https://github.com/${target.repository}/pull/${target.pullRequest}`
+}
+
 export function ReviewDashboard() {
   const [view, setView] = useState('environment')
   const [version, setVersion] = useState(versions[0])
+  const [gateTarget] = useState(() => readGateTarget())
 
   useEffect(() => {
     const resetRootView = () => {
@@ -68,13 +94,13 @@ export function ReviewDashboard() {
   return (
     <div className="h-dvh overflow-hidden bg-[#070b0a] text-zinc-100 antialiased">
       <div className="fixed inset-0 bg-[radial-gradient(circle_at_12%_16%,rgba(62,113,96,0.22),transparent_36%),linear-gradient(135deg,#15221f_0%,#070b0a_56%,#040504_100%)]" />
-      <DesktopShell view={view} setView={setView} version={version} setVersion={setVersion} />
-      <MobileShell view={view} setView={setView} version={version} setVersion={setVersion} />
+      <DesktopShell view={view} setView={setView} version={version} setVersion={setVersion} gateTarget={gateTarget} />
+      <MobileShell view={view} setView={setView} version={version} setVersion={setVersion} gateTarget={gateTarget} />
     </div>
   )
 }
 
-function DesktopShell({ view, setView, version, setVersion }) {
+function DesktopShell({ view, setView, version, setVersion, gateTarget }) {
   const compactRail = view !== 'insights' && view !== 'actions' && view !== 'compliance'
 
   return (
@@ -88,7 +114,7 @@ function DesktopShell({ view, setView, version, setVersion }) {
         {view === 'environment' && (
           <div className="grid min-h-0 grid-cols-[320px_minmax(0,1fr)]">
             <ResourceBrowser />
-            <EnvironmentCanvas version={version} setVersion={setVersion} onOpenInsight={() => setView('insights')} />
+            <EnvironmentCanvas version={version} setVersion={setVersion} gateTarget={gateTarget} onOpenInsight={() => setView('insights')} />
           </div>
         )}
         {view === 'generate' && (
@@ -104,7 +130,7 @@ function DesktopShell({ view, setView, version, setVersion }) {
   )
 }
 
-function MobileShell({ view, setView, version, setVersion }) {
+function MobileShell({ view, setView, version, setVersion, gateTarget }) {
   return (
     <div className="relative h-dvh overflow-hidden lg:hidden">
       <header className="border-b border-white/10 bg-[#080b0a]/98 px-4 py-3">
@@ -115,7 +141,7 @@ function MobileShell({ view, setView, version, setVersion }) {
             </button>
             <div className="min-w-0">
               <div className="truncate text-base font-semibold">Production Environment</div>
-              <div className="truncate text-xs text-zinc-500">Isengard · PR #1 blocked</div>
+              <div className="truncate text-xs text-zinc-500">Isengard · PR #{gateTarget.pullRequest} blocked</div>
             </div>
           </div>
           <VersionSelect version={version} setVersion={setVersion} compact />
@@ -229,7 +255,7 @@ function ResourceBrowser({ mobile = false }) {
   )
 }
 
-function EnvironmentCanvas({ version, setVersion, mobile = false, onOpenInsight, preview = false }) {
+function EnvironmentCanvas({ version, setVersion, gateTarget = defaultGateTarget, mobile = false, onOpenInsight, preview = false }) {
   if (mobile) {
     return <MobileEnvironmentCanvas onOpenInsight={onOpenInsight} />
   }
@@ -237,7 +263,7 @@ function EnvironmentCanvas({ version, setVersion, mobile = false, onOpenInsight,
   return (
     <section className="relative min-h-0 overflow-hidden bg-[#070b0a]">
       <CanvasTexture />
-      {!preview && !mobile && <CanvasTopbar version={version} setVersion={setVersion} />}
+      {!preview && !mobile && <CanvasTopbar version={version} setVersion={setVersion} gateTarget={gateTarget} />}
       {!preview && !mobile && <CanvasToolbar />}
       <div
         className={`${
@@ -396,24 +422,24 @@ function CanvasTexture() {
   )
 }
 
-function CanvasTopbar({ version, setVersion }) {
+function CanvasTopbar({ version, setVersion, gateTarget }) {
   return (
     <div className="absolute right-5 top-5 z-30 flex items-center gap-2">
       <a
-        href="https://github.com/bshamloufard/aegisiac-demo-actions-wall/pull/1"
+        href={githubPullRequestUrl(gateTarget)}
         target="_blank"
         rel="noreferrer"
         className="rounded-lg border border-white/10 bg-white/[0.045] px-3 py-2 text-sm text-zinc-300 transition hover:border-orange-300/50 hover:bg-white/10 hover:text-zinc-100"
       >
-        PR #1
+        PR #{gateTarget.pullRequest}
       </a>
-      <GitHubGateControl />
+      <GitHubGateControl gateTarget={gateTarget} />
       <VersionSelect version={version} setVersion={setVersion} />
     </div>
   )
 }
 
-function GitHubGateControl() {
+function GitHubGateControl({ gateTarget }) {
   const [state, setState] = useState('pending')
   const [busy, setBusy] = useState(null)
   const [message, setMessage] = useState('Waiting for website approval')
@@ -428,10 +454,11 @@ function GitHubGateControl() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           decision,
-          repository: 'bshamloufard/aegisiac-demo-actions-wall',
-          pullRequest: 1,
+          repository: gateTarget.repository,
+          pullRequest: gateTarget.pullRequest,
+          sha: gateTarget.sha || undefined,
           reviewer: 'Isengard reviewer',
-          targetUrl: window.location.origin,
+          targetUrl: window.location.href,
         }),
       })
       const payload = await response.json().catch(() => ({}))
