@@ -236,7 +236,7 @@ const MenuBar = ({ editor, onSave, onShare }) => {
 export function JournalPage() {
   const [showSaveModal, setShowSaveModal] = useState(false)
   const [savedNotebooks, setSavedNotebooks] = useState([])
-  const [editorState, setEditorState] = useState(0)
+  const [, setEditorState] = useState(0)
 
   const editor = useEditor({
     extensions: [

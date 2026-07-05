@@ -1,0 +1,29 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "useDefineForClassFields": true,
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "allowJs": true,
+    "checkJs": false,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "strict": true,
+    "forceConsistentCasingInFileNames": true,
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "baseUrl": ".",
+    "paths": {
+      "@aegisiac/ai": ["packages/ai/src/index.ts"],
+      "@aegisiac/contracts": ["packages/contracts/src/index.ts"],
+      "@aegisiac/risk": ["packages/risk/src/index.ts"]
+    },
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "types": ["node", "vite/client", "vitest"]
+  },
+  "include": ["src", "apps", "packages", "vite.config.js", "eslint.config.js"],
+  "exclude": ["dist", "node_modules"]
+}

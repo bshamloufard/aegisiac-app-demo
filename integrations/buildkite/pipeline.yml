@@ -1,0 +1,120 @@
+env:
+  AEGIS_CHECK_NAME: "aegis/plan-review"
+  OUT_DIR: "aegis-out"
+
+steps:
+  - label: ":terraform: aegis/plan-review"
+    key: "aegis-plan-review"
+    artifact_paths:
+      - "aegis-out/tfplan.redacted.json"
+      - "aegis-out/infracost.json"
+      - "aegis-out/checkov.json"
+      - "aegis-out/checkov.stderr"
+      - "aegis-out/aegis-ingest.json"
+    command: |
+      set -euo pipefail
+      : "${TF_ROOT:=.}"
+      : "${TF_PLAN_ARGS:=}"
+      mkdir -p "$OUT_DIR"
+
+      terraform -chdir="$TF_ROOT" init -input=false
+
+      set +e
+      terraform -chdir="$TF_ROOT" plan \
+        -input=false \
+        -no-color \
+        -detailed-exitcode \
+        -out="$PWD/$OUT_DIR/tfplan.bin" \
+        ${TF_PLAN_ARGS}
+      plan_exit=$?
+      set -e
+
+      if [ "$plan_exit" -eq 1 ]; then
+        echo "Terraform plan failed" >&2
+        exit 1
+      fi
+
+      terraform -chdir="$TF_ROOT" show -json "$PWD/$OUT_DIR/tfplan.bin" \
+        > "$OUT_DIR/tfplan.raw.json"
+      jq -f integrations/redact-plan.jq "$OUT_DIR/tfplan.raw.json" \
+        > "$OUT_DIR/tfplan.redacted.json"
+
+      if ! infracost breakdown \
+        --path "$OUT_DIR/tfplan.raw.json" \
+        --format json \
+        --out-file "$OUT_DIR/infracost.json"; then
+        jq -n '{error: "infracost breakdown failed"}' > "$OUT_DIR/infracost.json"
+      fi
+
+      # Pin container images to immutable digests in production.
+      if ! docker run --rm \
+        -v "$PWD:/work" \
+        -w /work \
+        bridgecrew/checkov:latest \
+        --directory "/work/$TF_ROOT" \
+        --framework terraform \
+        --output json \
+        --quiet \
+        --soft-fail \
+        > "$OUT_DIR/checkov.json" \
+        2> "$OUT_DIR/checkov.stderr"; then
+        jq -n '{error: "checkov failed"}' > "$OUT_DIR/checkov.json"
+      fi
+
+      jq -n \
+        --arg source "buildkite" \
+        --arg provider "github" \
+        --arg repository "${BUILDKITE_REPO:-}" \
+        --arg branch "${BUILDKITE_BRANCH:-}" \
+        --arg baseBranch "${BUILDKITE_PULL_REQUEST_BASE_BRANCH:-}" \
+        --arg commitSha "${BUILDKITE_COMMIT:-}" \
+        --arg pullRequest "${BUILDKITE_PULL_REQUEST:-}" \
+        --arg buildId "${BUILDKITE_BUILD_ID:-}" \
+        --arg buildNumber "${BUILDKITE_BUILD_NUMBER:-}" \
+        --arg buildUrl "${BUILDKITE_BUILD_URL:-}" \
+        --arg jobId "${BUILDKITE_JOB_ID:-}" \
+        --arg tfRoot "$TF_ROOT" \
+        --arg planExitCode "$plan_exit" \
+        --arg checkName "$AEGIS_CHECK_NAME" \
+        --slurpfile terraformPlan "$OUT_DIR/tfplan.redacted.json" \
+        --slurpfile infracost "$OUT_DIR/infracost.json" \
+        --slurpfile checkov "$OUT_DIR/checkov.json" \
+        '{
+          source: $source,
+          provider: $provider,
+          repository: $repository,
+          branch: $branch,
+          baseBranch: $baseBranch,
+          commitSha: $commitSha,
+          pullRequest: (
+            if $pullRequest == "" or $pullRequest == "false" then
+              null
+            else
+              ($pullRequest | tonumber? // $pullRequest)
+            end
+          ),
+          run: {
+            id: $buildId,
+            number: $buildNumber,
+            jobId: $jobId,
+            url: $buildUrl
+          },
+          terraform: {
+            root: $tfRoot,
+            planExitCode: ($planExitCode | tonumber),
+            plan: $terraformPlan[0]
+          },
+          reports: {
+            infracost: $infracost[0],
+            checkov: $checkov[0]
+          },
+          checkName: $checkName
+        }' > "$OUT_DIR/aegis-ingest.json"
+
+      test -n "${AEGIS_INGEST_URL:-}"
+      test -n "${AEGIS_INGEST_TOKEN:-}"
+      curl --fail-with-body --retry 3 --connect-timeout 10 \
+        -X POST "$AEGIS_INGEST_URL" \
+        -H "Authorization: Bearer $AEGIS_INGEST_TOKEN" \
+        -H "Content-Type: application/json" \
+        --data-binary @"$OUT_DIR/aegis-ingest.json"

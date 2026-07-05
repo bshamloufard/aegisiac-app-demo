@@ -1,0 +1,13 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "paths": {
+      "@aegisiac/ai": ["../../packages/ai/dist/index.d.ts"],
+      "@aegisiac/risk": ["../../packages/risk/dist/index.d.ts"]
+    }
+  },
+  "references": [
+    { "path": "../../packages/risk" },
+    { "path": "../../packages/ai" }
+  ]
+}

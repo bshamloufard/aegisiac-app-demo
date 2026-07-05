@@ -1,0 +1,190 @@
+name: AegisIaC plan review
+
+on:
+  pull_request:
+    paths:
+      - "**/*.tf"
+      - "**/*.tfvars"
+      - ".terraform.lock.hcl"
+      - "integrations/redact-plan.jq"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+env:
+  TF_ROOT: ${{ vars.AEGIS_TF_ROOT }}
+  TF_PLAN_ARGS: ${{ vars.AEGIS_TF_PLAN_ARGS }}
+  AEGIS_CHECK_NAME: aegis/plan-review
+  OUT_DIR: aegis-out
+
+jobs:
+  aegis-plan-ingest:
+    name: aegis/plan-ingest
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      # Pin third-party actions to full commit SHAs in production.
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Pin third-party actions to full commit SHAs in production.
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
+      # Pin third-party actions to full commit SHAs in production.
+      - name: Setup Infracost
+        uses: infracost/actions/setup@v3
+        with:
+          api-key: ${{ secrets.INFRACOST_API_KEY }}
+
+      - name: Terraform plan JSON
+        id: plan
+        shell: bash
+        run: |
+          set -euo pipefail
+          : "${TF_ROOT:=.}"
+          mkdir -p "$OUT_DIR"
+
+          terraform -chdir="$TF_ROOT" init -input=false
+
+          set +e
+          terraform -chdir="$TF_ROOT" plan \
+            -input=false \
+            -no-color \
+            -detailed-exitcode \
+            -out="$GITHUB_WORKSPACE/$OUT_DIR/tfplan.bin" \
+            ${TF_PLAN_ARGS}
+          plan_exit=$?
+          set -e
+
+          if [ "$plan_exit" -eq 1 ]; then
+            echo "Terraform plan failed" >&2
+            exit 1
+          fi
+
+          terraform -chdir="$TF_ROOT" show -json "$GITHUB_WORKSPACE/$OUT_DIR/tfplan.bin" \
+            > "$OUT_DIR/tfplan.raw.json"
+          jq -f integrations/redact-plan.jq "$OUT_DIR/tfplan.raw.json" \
+            > "$OUT_DIR/tfplan.redacted.json"
+          echo "plan_exit_code=$plan_exit" >> "$GITHUB_OUTPUT"
+
+      - name: Infracost report
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! infracost breakdown \
+            --path "$OUT_DIR/tfplan.raw.json" \
+            --format json \
+            --out-file "$OUT_DIR/infracost.json"; then
+            jq -n '{error: "infracost breakdown failed"}' > "$OUT_DIR/infracost.json"
+          fi
+
+      - name: Checkov report
+        shell: bash
+        run: |
+          set -euo pipefail
+          : "${TF_ROOT:=.}"
+          # Pin container images to immutable digests in production.
+          if ! docker run --rm \
+            -v "$GITHUB_WORKSPACE:/work" \
+            -w /work \
+            bridgecrew/checkov:latest \
+            --directory "/work/$TF_ROOT" \
+            --framework terraform \
+            --output json \
+            --quiet \
+            --soft-fail \
+            > "$OUT_DIR/checkov.json" \
+            2> "$OUT_DIR/checkov.stderr"; then
+            jq -n '{error: "checkov failed"}' > "$OUT_DIR/checkov.json"
+          fi
+
+      - name: Build Aegis ingest payload
+        shell: bash
+        env:
+          PLAN_EXIT_CODE: ${{ steps.plan.outputs.plan_exit_code }}
+        run: |
+          set -euo pipefail
+          jq -n \
+            --arg source "github-actions" \
+            --arg provider "github" \
+            --arg repository "$GITHUB_REPOSITORY" \
+            --arg repositoryUrl "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" \
+            --arg branch "${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}" \
+            --arg baseBranch "${{ github.base_ref }}" \
+            --arg commitSha "$GITHUB_SHA" \
+            --arg runId "$GITHUB_RUN_ID" \
+            --arg runAttempt "$GITHUB_RUN_ATTEMPT" \
+            --arg runUrl "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
+            --arg pullRequest "${{ github.event.pull_request.number }}" \
+            --arg tfRoot "${TF_ROOT:-.}" \
+            --arg planExitCode "$PLAN_EXIT_CODE" \
+            --arg checkName "$AEGIS_CHECK_NAME" \
+            --slurpfile terraformPlan "$OUT_DIR/tfplan.redacted.json" \
+            --slurpfile infracost "$OUT_DIR/infracost.json" \
+            --slurpfile checkov "$OUT_DIR/checkov.json" \
+            '{
+              source: $source,
+              provider: $provider,
+              repository: $repository,
+              repositoryUrl: $repositoryUrl,
+              branch: $branch,
+              baseBranch: $baseBranch,
+              commitSha: $commitSha,
+              pullRequest: (
+                if $pullRequest == "" then
+                  null
+                else
+                  ($pullRequest | tonumber? // $pullRequest)
+                end
+              ),
+              run: {
+                id: $runId,
+                attempt: $runAttempt,
+                url: $runUrl
+              },
+              terraform: {
+                root: $tfRoot,
+                planExitCode: ($planExitCode | tonumber),
+                plan: $terraformPlan[0]
+              },
+              reports: {
+                infracost: $infracost[0],
+                checkov: $checkov[0]
+              },
+              checkName: $checkName
+            }' > "$OUT_DIR/aegis-ingest.json"
+
+      - name: Ingest plan review
+        shell: bash
+        env:
+          AEGIS_INGEST_URL: ${{ secrets.AEGIS_INGEST_URL }}
+          AEGIS_INGEST_TOKEN: ${{ secrets.AEGIS_INGEST_TOKEN }}
+        run: |
+          set -euo pipefail
+          test -n "$AEGIS_INGEST_URL"
+          test -n "$AEGIS_INGEST_TOKEN"
+          curl --fail-with-body --retry 3 --connect-timeout 10 \
+            -X POST "$AEGIS_INGEST_URL" \
+            -H "Authorization: Bearer $AEGIS_INGEST_TOKEN" \
+            -H "Content-Type: application/json" \
+            --data-binary @"$OUT_DIR/aegis-ingest.json"
+
+      - name: Upload Aegis artifacts
+        if: always()
+        # Pin third-party actions to full commit SHAs in production.
+        uses: actions/upload-artifact@v4
+        with:
+          name: aegis-plan-review
+          if-no-files-found: warn
+          path: |
+            aegis-out/tfplan.redacted.json
+            aegis-out/infracost.json
+            aegis-out/checkov.json
+            aegis-out/checkov.stderr
+            aegis-out/aegis-ingest.json
