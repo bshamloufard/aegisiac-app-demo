@@ -29,7 +29,7 @@ export function WorkspaceNav() {
             <CloudCog className="h-5 w-5" />
           </div>
           <div className="min-w-0">
-            <div className="text-sm font-semibold text-zinc-950">AegisIaC</div>
+            <div className="text-sm font-semibold text-zinc-950">Isengard</div>
             <div className="truncate text-xs text-zinc-500">PR review control plane</div>
           </div>
         </div>

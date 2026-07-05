@@ -145,7 +145,7 @@ export function ArchitectureDiagram({ compact = false }) {
               Review blocker
             </div>
             <p className="text-xs leading-5 text-orange-100/75">
-              The current plan hash requires security approval before `aegis/plan-review` can turn green.
+              The current plan hash requires security approval before `isengard/plan-review` can turn green.
             </p>
           </div>
         </aside>

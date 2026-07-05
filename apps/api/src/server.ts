@@ -184,7 +184,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
 
   app.get("/v1/health", async () => ({
     status: "ok",
-    service: "aegisiac-api",
+    service: "isengard-api",
     time: new Date().toISOString()
   }));
 

@@ -1,6 +1,6 @@
 # @aegisiac/contracts
 
-Shared TypeScript contracts for the AegisIaC MVP.
+Shared TypeScript contracts for the Isengard MVP.
 
 This package owns the API DTOs, normalized Terraform plan model, graph payloads,
 AI provider configuration, and approval/risk enums used by the frontend,

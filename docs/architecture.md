@@ -1,8 +1,8 @@
-# AegisIaC MVP Architecture
+# Isengard MVP Architecture
 
 ## Goal
 
-AegisIaC captures Terraform plan runs, stores normalized plan data, produces an infrastructure graph, records AI review results, and gates merge/apply approval by plan hash.
+Isengard captures Terraform plan runs, stores normalized plan data, produces an infrastructure graph, records AI review results, and gates merge/apply approval by plan hash.
 
 This repository currently contains an MVP scaffold: shared contracts, Supabase schema, Fastify API skeleton, risk and AI domain packages, CI integration templates, and a Vite-hosted PR review dashboard prototype.
 
@@ -36,7 +36,7 @@ This repository currently contains an MVP scaffold: shared contracts, Supabase s
 
 1. A client creates or selects a project and workspace.
 2. A client creates a `plan_run` with source metadata such as branch, commit, Terraform version, and CLI args.
-3. A worker uploads raw artifacts to the private `aegis-iac-artifacts` storage bucket under `{auth.uid()}/{planRunId}/...`.
+3. A worker uploads raw artifacts to the private `isengard-artifacts` storage bucket under `{auth.uid()}/{planRunId}/...`.
 4. The API/worker parses `resource_changes`, stores normalized resource changes, and updates the plan summary.
 5. The risk package extracts dependency edges and produces graph DTOs.
 6. The risk package computes a tier from destructive/stateful changes, graph breadth, and policy/cost signals.
@@ -52,7 +52,7 @@ M0 assumes Supabase Auth and project-level membership.
 - Policies use `auth.uid()` and helper functions for project membership and plan-run access.
 - Service role access is reserved for trusted backend jobs.
 - No `anon` table grants are included.
-- Storage object access requires the private bucket `aegis-iac-artifacts` and a first path segment equal to the authenticated user's UUID.
+- Storage object access requires the private bucket `isengard-artifacts` and a first path segment equal to the authenticated user's UUID.
 
 ## API Shape
 

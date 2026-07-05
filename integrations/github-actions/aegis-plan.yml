@@ -1,4 +1,4 @@
-name: AegisIaC plan review
+name: Isengard plan review
 
 on:
   pull_request:
@@ -16,12 +16,12 @@ permissions:
 env:
   TF_ROOT: ${{ vars.AEGIS_TF_ROOT }}
   TF_PLAN_ARGS: ${{ vars.AEGIS_TF_PLAN_ARGS }}
-  AEGIS_CHECK_NAME: aegis/plan-review
+  AEGIS_CHECK_NAME: isengard/plan-review
   OUT_DIR: aegis-out
 
 jobs:
   aegis-plan-ingest:
-    name: aegis/plan-ingest
+    name: isengard/plan-ingest
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -104,7 +104,7 @@ jobs:
             jq -n '{error: "checkov failed"}' > "$OUT_DIR/checkov.json"
           fi
 
-      - name: Build Aegis ingest payload
+      - name: Build Isengard ingest payload
         shell: bash
         env:
           PLAN_EXIT_CODE: ${{ steps.plan.outputs.plan_exit_code }}
@@ -175,7 +175,7 @@ jobs:
             -H "Content-Type: application/json" \
             --data-binary @"$OUT_DIR/aegis-ingest.json"
 
-      - name: Upload Aegis artifacts
+      - name: Upload Isengard artifacts
         if: always()
         # Pin third-party actions to full commit SHAs in production.
         uses: actions/upload-artifact@v4

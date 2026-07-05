@@ -1,7 +1,7 @@
-# AegisIaC CI integration
+# Isengard CI integration
 
 These reference templates collect Terraform plan evidence, redact Terraform
-sensitive masks, run Infracost and Checkov, and post one payload to the AegisIaC
+sensitive masks, run Infracost and Checkov, and post one payload to the Isengard
 ingest endpoint. They are intended to be copied into a consuming repository and
 adjusted for that repository's Terraform layout.
 
@@ -15,7 +15,7 @@ adjusted for that repository's Terraform layout.
 
 Both templates keep `tfplan.raw.json` and `tfplan.bin` local to the job. Uploaded
 artifacts are limited to the redacted Terraform plan, Infracost JSON, Checkov
-JSON, Checkov stderr, and the Aegis ingest payload.
+JSON, Checkov stderr, and the Isengard ingest payload.
 
 ## Required secrets
 
@@ -60,8 +60,8 @@ image to an immutable digest in production.
 
 ## GitHub App permissions
 
-The AegisIaC GitHub App should create or update the check run named
-`aegis/plan-review` after ingest receives a CI payload. Configure the App with:
+The Isengard GitHub App should create or update the check run named
+`isengard/plan-review` after ingest receives a CI payload. Configure the App with:
 
 - Metadata: read-only. This is required for all GitHub Apps.
 - Contents: read-only.
@@ -74,13 +74,13 @@ contents and pull request read permissions for `GITHUB_TOKEN`.
 
 ## Branch protection
 
-Use `aegis/plan-review` as the required check name in branch protection rules.
+Use `isengard/plan-review` as the required check name in branch protection rules.
 GitHub only offers a status check in the branch protection selector after that
 check has been created at least once for the repository. Install the App, open or
-rerun a pull request, wait for AegisIaC to create the first `aegis/plan-review`
+rerun a pull request, wait for Isengard to create the first `isengard/plan-review`
 check run, then select that check from branch protection.
 
 If a GitHub Actions job and a GitHub App check share the same display name,
 GitHub may show multiple selectable entries with different sources. Select the
-entry whose source is the AegisIaC GitHub App, not the workflow job. The provided
-workflow job is named `aegis/plan-ingest` to avoid that ambiguity.
+entry whose source is the Isengard GitHub App, not the workflow job. The provided
+workflow job is named `isengard/plan-ingest` to avoid that ambiguity.

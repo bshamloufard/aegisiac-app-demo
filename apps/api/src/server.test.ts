@@ -8,7 +8,7 @@ describe("API server", () => {
     await app.close();
 
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toMatchObject({ status: "ok", service: "aegisiac-api" });
+    expect(response.json()).toMatchObject({ status: "ok", service: "isengard-api" });
   });
 
   it("ingests a JSON Terraform plan", async () => {

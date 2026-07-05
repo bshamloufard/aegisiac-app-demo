@@ -107,7 +107,7 @@ export const actionRuns = [
   { id: 'plan', label: 'Terraform plan', state: 'Passed', time: '41s' },
   { id: 'checkov', label: 'Checkov policy', state: 'Blocked', time: '18s' },
   { id: 'infracost', label: 'Infracost delta', state: 'Warning', time: '9s' },
-  { id: 'aegis', label: 'aegis/plan-review', state: 'Action required', time: '1m 04s' },
+  { id: 'aegis', label: 'isengard/plan-review', state: 'Action required', time: '1m 04s' },
 ]
 
 export const mitigationSteps = [

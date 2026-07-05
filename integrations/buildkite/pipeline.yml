@@ -1,9 +1,9 @@
 env:
-  AEGIS_CHECK_NAME: "aegis/plan-review"
+  AEGIS_CHECK_NAME: "isengard/plan-review"
   OUT_DIR: "aegis-out"
 
 steps:
-  - label: ":terraform: aegis/plan-review"
+  - label: ":terraform: isengard/plan-review"
     key: "aegis-plan-review"
     artifact_paths:
       - "aegis-out/tfplan.redacted.json"

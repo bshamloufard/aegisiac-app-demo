@@ -90,7 +90,7 @@ function MobileExperience({ version, setVersion, mobilePanel, setMobilePanel }) 
             </button>
             <div>
               <div className="text-sm font-semibold">SQL Server production review</div>
-              <div className="text-xs text-zinc-500">PR #1 · aegis/plan-review blocked</div>
+              <div className="text-xs text-zinc-500">PR #1 · isengard/plan-review blocked</div>
             </div>
           </div>
           <VersionSelect version={version} setVersion={setVersion} mobile />
@@ -254,7 +254,7 @@ function ApprovalGate() {
     <section>
       <div className="mb-3 flex items-center justify-between">
         <div>
-          <div className="text-sm font-semibold">aegis/plan-review</div>
+          <div className="text-sm font-semibold">isengard/plan-review</div>
           <div className="mt-1 text-xs text-zinc-500">Required GitHub Check</div>
         </div>
         <span className="rounded bg-red-500/15 px-2 py-1 text-xs font-semibold text-red-300">Action required</span>

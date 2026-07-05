@@ -1,6 +1,6 @@
 openapi: 3.1.0
 info:
-  title: AegisIaC MVP API
+  title: Isengard MVP API
   version: 0.1.0
   description: REST contract for the M0 plan-run, graph, AI review, and approval workflow.
 servers:
