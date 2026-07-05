@@ -82,7 +82,7 @@ function githubPullRequestUrl(target) {
 export function ReviewDashboard() {
   const [view, setView] = useState('environment')
   const [version, setVersion] = useState(versions[0])
-  const [gateTarget] = useState(() => readGateTarget())
+  const [gateTarget, setGateTarget] = useState(() => readGateTarget())
 
   useEffect(() => {
     const resetRootView = () => {
@@ -93,6 +93,36 @@ export function ReviewDashboard() {
     window.addEventListener('pageshow', resetRootView)
     return () => window.removeEventListener('pageshow', resetRootView)
   }, [])
+
+  useEffect(() => {
+    if (!gateTarget.shortRef) return undefined
+
+    const controller = new AbortController()
+    fetch(`/v1/demo/pr-gate/resolve/${encodeURIComponent(gateTarget.shortRef)}`, {
+      signal: controller.signal,
+    })
+      .then((response) => {
+        if (!response.ok) throw new Error('Unable to resolve PR review link')
+        return response.json()
+      })
+      .then((payload) => {
+        if (!payload?.gate) return
+        setGateTarget((current) => ({
+          ...current,
+          repository: payload.gate.repository || current.repository,
+          pullRequest: payload.gate.pullRequest ? String(payload.gate.pullRequest) : current.pullRequest,
+          shortRef: payload.gate.shortRef || current.shortRef,
+          sha: payload.gate.sha || current.sha,
+        }))
+      })
+      .catch((error) => {
+        if (error.name !== 'AbortError') {
+          console.warn(error)
+        }
+      })
+
+    return () => controller.abort()
+  }, [gateTarget.shortRef])
 
   return (
     <div className="h-dvh overflow-hidden bg-[#070b0a] text-zinc-100 antialiased">

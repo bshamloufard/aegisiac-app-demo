@@ -1,7 +1,29 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { buildApp } from "./server.js";
 
+const originalGithubToken = process.env.GITHUB_TOKEN;
+const originalIsengardGithubToken = process.env.ISENGARD_GITHUB_TOKEN;
+
 describe("API server", () => {
+  beforeEach(() => {
+    delete process.env.GITHUB_TOKEN;
+    delete process.env.ISENGARD_GITHUB_TOKEN;
+  });
+
+  afterEach(() => {
+    if (originalGithubToken === undefined) {
+      delete process.env.GITHUB_TOKEN;
+    } else {
+      process.env.GITHUB_TOKEN = originalGithubToken;
+    }
+
+    if (originalIsengardGithubToken === undefined) {
+      delete process.env.ISENGARD_GITHUB_TOKEN;
+    } else {
+      process.env.ISENGARD_GITHUB_TOKEN = originalIsengardGithubToken;
+    }
+  });
+
   it("returns health status", async () => {
     const app = await buildApp();
     const response = await app.inject({ method: "GET", url: "/v1/health" });
@@ -35,5 +57,21 @@ describe("API server", () => {
 
     expect(response.statusCode).toBe(202);
     expect(response.json().planRun.planHash).toEqual(expect.any(String));
+  });
+
+  it("resolves short PR review references without redirecting to query strings", async () => {
+    const app = await buildApp();
+    const response = await app.inject({ method: "GET", url: "/v1/demo/pr-gate/resolve/aw-1-4e630b4" });
+    await app.close();
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      gate: {
+        repository: "bshamloufard/aegisiac-demo-actions-wall",
+        pullRequest: 1,
+        shortRef: "aw-1-4e630b4",
+        sha: "4e630b4"
+      }
+    });
   });
 });

@@ -328,6 +328,33 @@ async function resolvePullRequestHeadSha(
   return headSha;
 }
 
+async function resolveShortPrRefTarget(ref: string): Promise<{
+  repository: string;
+  pullRequest: number;
+  shortRef: string;
+  sha?: string | undefined;
+}> {
+  const parsedRef = parseShortPrRef(ref);
+  const token = process.env.ISENGARD_GITHUB_TOKEN ?? process.env.GITHUB_TOKEN;
+  let sha = parsedRef.shaPrefix;
+
+  if (token) {
+    sha = await resolvePullRequestHeadSha(
+      new Octokit({ auth: token }),
+      parsedRef.repository,
+      parsedRef.pullRequest,
+      parsedRef.shaPrefix
+    );
+  }
+
+  return {
+    repository: parsedRef.repository,
+    pullRequest: parsedRef.pullRequest,
+    shortRef: shortRefFor(parsedRef.repository, parsedRef.pullRequest, sha),
+    sha
+  };
+}
+
 function statusForDecision(decision: NonNullable<DemoGateDecisionBody["decision"]>): "pending" | "success" | "failure" {
   if (decision === "approved") {
     return "success";
@@ -447,30 +474,10 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     approvalTokenRequired: Boolean(process.env.ISENGARD_APPROVAL_TOKEN)
   }));
 
-  app.get<{ Params: PrRefParams }>("/pr/:ref", async (request, reply) => {
+  app.get<{ Params: PrRefParams }>("/v1/demo/pr-gate/resolve/:ref", async (request, reply) => {
     try {
-      const token = process.env.ISENGARD_GITHUB_TOKEN ?? process.env.GITHUB_TOKEN;
-      const parsedRef = parseShortPrRef(request.params.ref);
-      let sha = parsedRef.shaPrefix;
-
-      if (token) {
-        sha = await resolvePullRequestHeadSha(
-          new Octokit({ auth: token }),
-          parsedRef.repository,
-          parsedRef.pullRequest,
-          parsedRef.shaPrefix
-        );
-      }
-
-      const query = new URLSearchParams({
-        repo: parsedRef.repository,
-        pr: String(parsedRef.pullRequest)
-      });
-      if (sha) {
-        query.set("sha", sha);
-      }
-
-      return reply.redirect(`/?${query.toString()}`, 302);
+      const target = await resolveShortPrRefTarget(request.params.ref);
+      return { gate: target };
     } catch (error) {
       request.log.warn({ error, ref: request.params.ref }, "Short PR reference failed");
       return reply.code(404).send({ error: "short_pr_ref_not_found" });
