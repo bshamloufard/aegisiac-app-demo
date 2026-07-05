@@ -12,6 +12,10 @@ dist
 dist-ssr
 artifacts/visual-audit
 *.local
+skills-lock.json
+.agents/skills/*
+!.agents/skills/visual-ui-audit/
+!.agents/skills/visual-ui-audit/SKILL.md
 
 # Editor directories and files
 .vscode/*
