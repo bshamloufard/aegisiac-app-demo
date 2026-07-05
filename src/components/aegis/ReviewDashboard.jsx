@@ -68,13 +68,13 @@ export function ReviewDashboard() {
 
 function DesktopShell({ view, setView, version, setVersion }) {
   return (
-    <div className="relative hidden h-dvh place-items-center p-6 lg:grid">
-      <div className="h-[88dvh] max-h-[920px] min-h-[680px] w-[90vw] max-w-[1720px] overflow-hidden rounded-xl border border-white/10 bg-[#090c0b]/96 shadow-2xl shadow-black/70">
+    <div className="relative hidden h-dvh overflow-hidden lg:block">
+      <div className="h-full w-full overflow-hidden border border-white/10 bg-[#090c0b]/96 shadow-2xl shadow-black/70">
         {view === 'environment' && (
           <div className="grid h-full grid-cols-[64px_320px_minmax(0,1fr)]">
             <Rail view={view} setView={setView} compact />
             <ResourceBrowser />
-            <EnvironmentCanvas version={version} setVersion={setVersion} />
+            <EnvironmentCanvas version={version} setVersion={setVersion} onOpenInsight={() => setView('insights')} />
           </div>
         )}
         {view === 'generate' && (
@@ -133,7 +133,7 @@ function MobileShell({ view, setView, version, setVersion }) {
         {view === 'environment' && (
           <div className="grid min-h-full grid-rows-[auto_minmax(620px,1fr)]">
             <ResourceBrowser mobile />
-            <EnvironmentCanvas mobile version={version} setVersion={setVersion} />
+            <EnvironmentCanvas mobile version={version} setVersion={setVersion} onOpenInsight={() => setView('insights')} />
           </div>
         )}
         {view === 'generate' && <GeneratePanel mobile />}
@@ -223,7 +223,7 @@ function ResourceBrowser({ mobile = false }) {
   )
 }
 
-function EnvironmentCanvas({ version, setVersion, mobile = false }) {
+function EnvironmentCanvas({ version, setVersion, mobile = false, onOpenInsight }) {
   return (
     <section className="relative min-h-0 overflow-hidden bg-[#080b0a]">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.12)_1px,transparent_1.5px)] bg-[length:26px_26px] opacity-30" />
@@ -264,9 +264,7 @@ function EnvironmentCanvas({ version, setVersion, mobile = false }) {
         <ResourceNode label="Server" icon={Server} badge="risk" selected className="left-[725px] top-[310px]" />
         <ResourceNode label="DNS VNet" icon={RadioTower} badge="risk" className="left-[785px] top-[470px]" />
 
-        <InsightCallout />
-        <CanvasToolbar />
-        <ZoomControls />
+        <InsightCallout onOpenInsight={onOpenInsight} />
       </div>
     </section>
   )
@@ -301,7 +299,7 @@ function ResourceNode({ label, icon: NodeIcon, badge, selected, className }) {
   )
 }
 
-function InsightCallout() {
+function InsightCallout({ onOpenInsight }) {
   return (
     <div className="absolute left-[840px] top-[300px] z-20 w-[250px] rounded-lg border border-white/10 bg-[#363b35]/95 shadow-2xl">
       <div className="flex items-center gap-3 border-b border-white/10 px-5 py-4">
@@ -312,32 +310,13 @@ function InsightCallout() {
         The server does not comply with defined security requirements. Review and update settings to reduce risk.
       </p>
       <div className="border-t border-white/10 p-4">
-        <button className="h-10 w-full rounded-md bg-white/10 text-sm font-semibold text-zinc-200 hover:bg-white/15">View details</button>
-      </div>
-    </div>
-  )
-}
-
-function CanvasToolbar() {
-  return (
-    <div className="absolute bottom-5 left-1/2 z-20 flex -translate-x-1/2 items-center gap-2 rounded-lg border border-white/10 bg-[#1b201c]/95 p-2 shadow-xl">
-      {[Sparkles, Activity, Wand2, X].map((Icon, index) => (
-        <button key={index} className="rounded-md p-2 text-zinc-300 hover:bg-white/10">
-          <Icon className="h-4 w-4" />
+        <button
+          onClick={onOpenInsight}
+          className="h-10 w-full rounded-md bg-white/10 text-sm font-semibold text-zinc-200 hover:bg-white/15"
+        >
+          View details
         </button>
-      ))}
-    </div>
-  )
-}
-
-function ZoomControls() {
-  return (
-    <div className="absolute bottom-5 right-5 z-20 flex items-center rounded-lg border border-white/10 bg-[#1b201c]/95 shadow-xl">
-      <button className="px-4 py-3 text-xl text-zinc-300">-</button>
-      <button className="border-l border-white/10 px-4 py-3 text-xl text-zinc-300">+</button>
-      <button className="border-l border-white/10 px-4 py-3 text-zinc-300">
-        <Layers className="h-4 w-4" />
-      </button>
+      </div>
     </div>
   )
 }
