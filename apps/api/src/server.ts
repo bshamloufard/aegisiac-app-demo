@@ -45,11 +45,16 @@ interface DemoGateDecisionBody {
   decision?: "approved" | "rejected" | "pending" | undefined;
   repository?: string | undefined;
   pullRequest?: number | string | undefined;
+  shortRef?: string | undefined;
   sha?: string | undefined;
   reviewer?: string | undefined;
   reason?: string | undefined;
   targetUrl?: string | undefined;
   context?: string | undefined;
+}
+
+interface PrRefParams {
+  ref: string;
 }
 
 type MultipartPart =
@@ -249,6 +254,80 @@ function parsePullRequestNumber(value: number | string): number {
   return parsed;
 }
 
+function repositoryAliases(): Record<string, string> {
+  const fallback = {
+    aw: "bshamloufard/aegisiac-demo-actions-wall",
+    app: "bshamloufard/aegisiac-app-demo"
+  };
+  const configured = process.env.ISENGARD_REPO_ALIASES;
+  if (!configured) {
+    return fallback;
+  }
+
+  const parsed = JSON.parse(configured) as unknown;
+  return isRecord(parsed) ? { ...fallback, ...Object.fromEntries(Object.entries(parsed).filter(([, value]) => typeof value === "string")) } : fallback;
+}
+
+function repoAliasFor(repository: string): string {
+  const match = Object.entries(repositoryAliases()).find(([, fullName]) => fullName === repository);
+  return match?.[0] ?? repository.replace(/[^a-zA-Z0-9]+/g, "").slice(0, 6).toLowerCase();
+}
+
+function shortRefFor(repository: string, pullRequest: number | string, sha: string | undefined): string {
+  const prefix = sha ? `-${sha.slice(0, 7)}` : "";
+  return `${repoAliasFor(repository)}-${pullRequest}${prefix}`;
+}
+
+function parseShortPrRef(ref: string): { repository: string; pullRequest: number; shaPrefix?: string | undefined } {
+  const match = /^([a-zA-Z0-9]+)-([1-9][0-9]*)(?:-([a-fA-F0-9]{6,12}))?$/.exec(ref);
+  if (!match) {
+    throw new Error("Short PR reference must look like aw-123 or aw-123-abc1234.");
+  }
+
+  const alias = match[1];
+  const pullRequestText = match[2];
+  const shaPrefix = match[3];
+  if (!alias || !pullRequestText) {
+    throw new Error("Short PR reference is missing a repository alias or pull request number.");
+  }
+
+  const repository = repositoryAliases()[alias];
+  if (!repository) {
+    throw new Error(`Unknown repository alias: ${alias}.`);
+  }
+
+  return {
+    repository,
+    pullRequest: parsePullRequestNumber(pullRequestText),
+    shaPrefix
+  };
+}
+
+async function resolvePullRequestHeadSha(
+  octokit: Octokit,
+  repository: string,
+  pullRequest: number,
+  sha: string | undefined
+): Promise<string> {
+  if (sha && /^[a-f0-9]{40}$/i.test(sha)) {
+    return sha;
+  }
+
+  const { owner, repo } = parseRepositoryFullName(repository);
+  const pull = await octokit.rest.pulls.get({
+    owner,
+    repo,
+    pull_number: pullRequest
+  });
+  const headSha = pull.data.head.sha;
+
+  if (sha && !headSha.startsWith(sha.toLowerCase())) {
+    throw new Error("Short SHA no longer matches the current pull request head.");
+  }
+
+  return headSha;
+}
+
 function statusForDecision(decision: NonNullable<DemoGateDecisionBody["decision"]>): "pending" | "success" | "failure" {
   if (decision === "approved") {
     return "success";
@@ -298,27 +377,25 @@ async function publishDemoGateStatus(body: DemoGateDecisionBody): Promise<Record
     throw new Error("ISENGARD_GITHUB_TOKEN or GITHUB_TOKEN is required to update GitHub PR status.");
   }
 
-  const repository = body.repository ?? process.env.ISENGARD_DEMO_REPOSITORY ?? "bshamloufard/aegisiac-demo-actions-wall";
-  const pullRequest = parsePullRequestNumber(body.pullRequest ?? process.env.ISENGARD_DEMO_PULL_REQUEST ?? "1");
+  const shortTarget = body.shortRef ? parseShortPrRef(body.shortRef) : undefined;
+  const repository =
+    body.repository ??
+    shortTarget?.repository ??
+    process.env.ISENGARD_DEMO_REPOSITORY ??
+    "bshamloufard/aegisiac-demo-actions-wall";
+  const pullRequest = parsePullRequestNumber(
+    body.pullRequest ?? shortTarget?.pullRequest ?? process.env.ISENGARD_DEMO_PULL_REQUEST ?? "1"
+  );
   const context = body.context ?? process.env.ISENGARD_CHECK_CONTEXT ?? "isengard/plan-review";
   const decision = body.decision ?? "pending";
   const { owner, repo } = parseRepositoryFullName(repository);
   const octokit = new Octokit({ auth: token });
-
-  let sha = body.sha;
-  if (!sha) {
-    const pull = await octokit.rest.pulls.get({
-      owner,
-      repo,
-      pull_number: pullRequest
-    });
-    sha = pull.data.head.sha;
-  }
+  const sha = await resolvePullRequestHeadSha(octokit, repository, pullRequest, body.sha ?? shortTarget?.shaPrefix);
+  const shortRef = shortRefFor(repository, pullRequest, sha);
 
   const targetUrl =
     body.targetUrl ??
-    process.env.ISENGARD_PUBLIC_URL ??
-    "https://isengard-environment-ui-production.up.railway.app/";
+    `${(process.env.ISENGARD_PUBLIC_URL ?? "https://isengard-environment-ui-production.up.railway.app/").replace(/\/$/, "")}/pr/${shortRef}`;
 
   const status = await octokit.rest.repos.createCommitStatus({
     owner,
@@ -333,6 +410,7 @@ async function publishDemoGateStatus(body: DemoGateDecisionBody): Promise<Record
   return {
     repository,
     pullRequest,
+    shortRef,
     sha,
     context,
     state: status.data.state,
@@ -368,6 +446,36 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     context: process.env.ISENGARD_CHECK_CONTEXT ?? "isengard/plan-review",
     approvalTokenRequired: Boolean(process.env.ISENGARD_APPROVAL_TOKEN)
   }));
+
+  app.get<{ Params: PrRefParams }>("/pr/:ref", async (request, reply) => {
+    try {
+      const token = process.env.ISENGARD_GITHUB_TOKEN ?? process.env.GITHUB_TOKEN;
+      const parsedRef = parseShortPrRef(request.params.ref);
+      let sha = parsedRef.shaPrefix;
+
+      if (token) {
+        sha = await resolvePullRequestHeadSha(
+          new Octokit({ auth: token }),
+          parsedRef.repository,
+          parsedRef.pullRequest,
+          parsedRef.shaPrefix
+        );
+      }
+
+      const query = new URLSearchParams({
+        repo: parsedRef.repository,
+        pr: String(parsedRef.pullRequest)
+      });
+      if (sha) {
+        query.set("sha", sha);
+      }
+
+      return reply.redirect(`/?${query.toString()}`, 302);
+    } catch (error) {
+      request.log.warn({ error, ref: request.params.ref }, "Short PR reference failed");
+      return reply.code(404).send({ error: "short_pr_ref_not_found" });
+    }
+  });
 
   app.post<{ Body: DemoGateDecisionBody }>("/v1/demo/pr-gate/decision", async (request, reply) => {
     try {

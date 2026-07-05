@@ -54,6 +54,7 @@ const impactRows = [
 const defaultGateTarget = {
   repository: 'bshamloufard/aegisiac-demo-actions-wall',
   pullRequest: '1',
+  shortRef: '',
   sha: '',
   run: '',
 }
@@ -64,9 +65,11 @@ function readGateTarget() {
   }
 
   const params = new URLSearchParams(window.location.search)
+  const shortRef = window.location.pathname.startsWith('/pr/') ? window.location.pathname.slice('/pr/'.length) : ''
   return {
     repository: params.get('repo') || defaultGateTarget.repository,
     pullRequest: params.get('pr') || defaultGateTarget.pullRequest,
+    shortRef: params.get('ref') || shortRef || defaultGateTarget.shortRef,
     sha: params.get('sha') || defaultGateTarget.sha,
     run: params.get('run') || defaultGateTarget.run,
   }
@@ -456,6 +459,7 @@ function GitHubGateControl({ gateTarget }) {
           decision,
           repository: gateTarget.repository,
           pullRequest: gateTarget.pullRequest,
+          shortRef: gateTarget.shortRef || undefined,
           sha: gateTarget.sha || undefined,
           reviewer: 'Isengard reviewer',
           targetUrl: window.location.href,
