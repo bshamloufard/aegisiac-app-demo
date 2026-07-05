@@ -12,6 +12,7 @@ dist
 dist-ssr
 artifacts/visual-audit
 *.local
+*.tsbuildinfo
 skills-lock.json
 .agents/skills/*
 !.agents/skills/visual-ui-audit/

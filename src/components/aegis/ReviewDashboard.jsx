@@ -19,6 +19,7 @@ import {
   Shield,
   Sparkles,
   Wand2,
+  X,
   ZoomIn,
   ZoomOut,
 } from 'lucide-react'
@@ -406,7 +407,86 @@ function CanvasTopbar({ version, setVersion }) {
       >
         PR #1
       </a>
+      <GitHubGateControl />
       <VersionSelect version={version} setVersion={setVersion} />
+    </div>
+  )
+}
+
+function GitHubGateControl() {
+  const [state, setState] = useState('pending')
+  const [busy, setBusy] = useState(null)
+  const [message, setMessage] = useState('Waiting for website approval')
+
+  const submitDecision = async (decision) => {
+    setBusy(decision)
+    setMessage(decision === 'approved' ? 'Approving PR gate...' : 'Requesting changes...')
+
+    try {
+      const response = await fetch('/v1/demo/pr-gate/decision', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          decision,
+          repository: 'bshamloufard/aegisiac-demo-actions-wall',
+          pullRequest: 1,
+          reviewer: 'Isengard reviewer',
+          targetUrl: window.location.origin,
+        }),
+      })
+      const payload = await response.json().catch(() => ({}))
+
+      if (!response.ok) {
+        throw new Error(payload.message || 'Unable to update GitHub status')
+      }
+
+      setState(decision)
+      setMessage(decision === 'approved' ? 'GitHub merge gate approved' : 'GitHub merge gate blocked')
+    } catch (error) {
+      setState('error')
+      setMessage(error instanceof Error ? error.message : 'Unable to update GitHub status')
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  const approved = state === 'approved'
+  const rejected = state === 'rejected'
+
+  return (
+    <div className="flex items-center gap-2 rounded-lg border border-white/10 bg-[#111713]/95 p-1 shadow-xl shadow-black/30">
+      <div
+        className={`hidden max-w-[220px] truncate px-2 text-xs lg:block ${
+          state === 'error' ? 'text-rose-300' : approved ? 'text-emerald-300' : rejected ? 'text-orange-300' : 'text-zinc-500'
+        }`}
+        title={message}
+      >
+        {message}
+      </div>
+      <button
+        type="button"
+        onClick={() => submitDecision('rejected')}
+        disabled={Boolean(busy)}
+        className={`grid h-8 w-8 place-items-center rounded-md transition active:scale-[0.96] disabled:cursor-wait disabled:opacity-60 ${
+          rejected ? 'bg-orange-500/20 text-orange-200' : 'text-zinc-500 hover:bg-white/[0.07] hover:text-orange-200'
+        }`}
+        aria-label="Request changes on GitHub gate"
+        title="Request changes"
+      >
+        <X className="h-4 w-4" />
+      </button>
+      <button
+        type="button"
+        onClick={() => submitDecision('approved')}
+        disabled={Boolean(busy)}
+        className={`grid h-8 w-8 place-items-center rounded-md transition active:scale-[0.96] disabled:cursor-wait disabled:opacity-60 ${
+          approved ? 'bg-emerald-500/20 text-emerald-200' : 'bg-emerald-500/10 text-emerald-200 hover:bg-emerald-500/20'
+        }`}
+        aria-label="Approve GitHub gate"
+        title="Approve"
+      >
+        <Check className="h-4 w-4" />
+      </button>
     </div>
   )
 }
