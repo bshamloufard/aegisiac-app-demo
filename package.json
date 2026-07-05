@@ -18,13 +18,15 @@
     "preview": "vite preview",
     "start": "node scripts/serve-dist.mjs",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "visual:audit": "node scripts/visual-audit.mjs",
+    "visual:audit:build": "npm run build && node scripts/visual-audit.mjs"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.68.0",
     "@aegisiac/ai": "file:packages/ai",
     "@aegisiac/contracts": "file:packages/contracts",
     "@aegisiac/risk": "file:packages/risk",
+    "@anthropic-ai/sdk": "^0.68.0",
     "@fastify/cors": "^11.2.0",
     "@fastify/multipart": "^9.3.0",
     "@octokit/rest": "^22.0.1",
@@ -58,6 +60,7 @@
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.22",
     "globals": "^16.4.0",
+    "playwright": "^1.61.1",
     "postcss": "^8.5.6",
     "tailwindcss": "^3.4.1",
     "tsx": "^4.21.0",

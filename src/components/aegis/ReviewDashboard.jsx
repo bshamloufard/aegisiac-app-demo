@@ -107,7 +107,7 @@ function MobileShell({ view, setView, version, setVersion }) {
       <header className="border-b border-white/10 bg-[#090c0b] px-4 py-3">
         <div className="mb-3 flex items-center justify-between">
           <div className="flex min-w-0 items-center gap-3">
-            <button className="rounded-md border border-white/10 p-2">
+            <button aria-label="Open menu" className="rounded-md border border-white/10 p-2">
               <Menu className="h-5 w-5" />
             </button>
             <div className="min-w-0">
@@ -131,9 +131,9 @@ function MobileShell({ view, setView, version, setVersion }) {
       </header>
       <main className="h-[calc(100dvh-105px)] overflow-y-auto">
         {view === 'environment' && (
-          <div className="grid min-h-full grid-rows-[auto_minmax(620px,1fr)]">
-            <ResourceBrowser mobile />
+          <div className="grid min-h-full grid-rows-[470px_auto]">
             <EnvironmentCanvas mobile version={version} setVersion={setVersion} onOpenInsight={() => setView('insights')} />
+            <ResourceBrowser mobile />
           </div>
         )}
         {view === 'generate' && <GeneratePanel mobile />}
@@ -201,10 +201,12 @@ function Rail({ view, setView, compact = false }) {
 function ResourceBrowser({ mobile = false }) {
   return (
     <aside className={`${mobile ? 'border-b' : 'border-r'} border-white/10 bg-[#111513]/95`}>
-      <div className="flex h-[72px] items-center gap-4 border-b border-white/10 px-5">
-        <ArrowLeft className="h-5 w-5 text-zinc-300" />
-        <div className="text-lg font-semibold">Production Environment</div>
-      </div>
+      {!mobile && (
+        <div className="flex h-[72px] items-center gap-4 border-b border-white/10 px-5">
+          <ArrowLeft className="h-5 w-5 text-zinc-300" />
+          <div className="text-lg font-semibold">Production Environment</div>
+        </div>
+      )}
       <div className="border-b border-white/10 p-4">
         <label className="flex h-11 items-center gap-3 rounded-md border border-white/10 bg-black/30 px-3">
           <Search className="h-5 w-5 text-zinc-500" />
@@ -216,32 +218,34 @@ function ResourceBrowser({ mobile = false }) {
         <div className="text-sm font-semibold">Resources</div>
         <Layers className="h-5 w-5 text-zinc-500" />
       </div>
-      <div className={`${mobile ? 'max-h-[330px]' : 'h-[calc(100%-190px)]'} overflow-y-auto px-4 pb-5`}>
+      <div className={`${mobile ? 'max-h-[520px]' : 'h-[calc(100%-190px)]'} overflow-y-auto px-4 pb-5`}>
         <ResourceTree items={resources} level={0} />
       </div>
     </aside>
   )
 }
 
-function EnvironmentCanvas({ version, setVersion, mobile = false, onOpenInsight }) {
+function EnvironmentCanvas({ version, setVersion, mobile = false, onOpenInsight, preview = false }) {
   return (
-    <section className="relative min-h-0 overflow-hidden bg-[#080b0a]">
+    <section className={`relative min-h-0 bg-[#080b0a] ${mobile ? 'overflow-x-auto overflow-y-hidden' : 'overflow-hidden'}`}>
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.12)_1px,transparent_1.5px)] bg-[length:26px_26px] opacity-30" />
       <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(20,184,166,0.06),transparent_22%)]" />
 
-      <div className="absolute right-5 top-5 z-20 flex items-center gap-2">
-        <a
-          href="https://github.com/bshamloufard/aegisiac-demo-actions-wall/pull/1"
-          target="_blank"
-          rel="noreferrer"
-          className="rounded-md border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-zinc-300 hover:bg-white/10"
-        >
-          PR #1
-        </a>
-        <VersionSelect version={version} setVersion={setVersion} />
-      </div>
+      {!preview && !mobile && (
+        <div className="absolute right-5 top-5 z-20 flex items-center gap-2">
+          <a
+            href="https://github.com/bshamloufard/aegisiac-demo-actions-wall/pull/1"
+            target="_blank"
+            rel="noreferrer"
+            className="rounded-md border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-zinc-300 hover:bg-white/10"
+          >
+            PR #1
+          </a>
+          <VersionSelect version={version} setVersion={setVersion} />
+        </div>
+      )}
 
-      <div className={`${mobile ? 'h-[680px] min-w-[920px]' : 'h-full min-h-[680px] min-w-[1080px]'} relative p-10`}>
+      <div className={`${mobile ? 'h-[470px] min-w-[920px] origin-top-left scale-[0.72]' : 'h-full min-h-[680px] min-w-[1040px]'} relative p-10`}>
         <Boundary label="Tenant" className="inset-x-10 top-20 h-[540px] border-teal-300/60" icon={Home} />
         <Boundary label="Subscription" className="left-[90px] top-[145px] h-[420px] w-[420px] border-yellow-400/65" icon={Cloud} />
         <Boundary label="Account" className="left-[130px] top-[200px] h-[310px] w-[335px] border-fuchsia-500/65" icon={Activity} />
@@ -264,7 +268,7 @@ function EnvironmentCanvas({ version, setVersion, mobile = false, onOpenInsight 
         <ResourceNode label="Server" icon={Server} badge="risk" selected className="left-[725px] top-[310px]" />
         <ResourceNode label="DNS VNet" icon={RadioTower} badge="risk" className="left-[785px] top-[470px]" />
 
-        <InsightCallout onOpenInsight={onOpenInsight} />
+        {!preview && <InsightCallout onOpenInsight={onOpenInsight} />}
       </div>
     </section>
   )
@@ -301,7 +305,7 @@ function ResourceNode({ label, icon: NodeIcon, badge, selected, className }) {
 
 function InsightCallout({ onOpenInsight }) {
   return (
-    <div className="absolute left-[840px] top-[300px] z-20 w-[250px] rounded-lg border border-white/10 bg-[#363b35]/95 shadow-2xl">
+    <div className="absolute left-[785px] top-[300px] z-20 w-[250px] rounded-lg border border-white/10 bg-[#363b35]/95 shadow-2xl">
       <div className="flex items-center gap-3 border-b border-white/10 px-5 py-4">
         <Activity className="h-5 w-5 text-orange-400" />
         <div className="text-sm font-semibold">Server misconfiguration</div>
@@ -392,7 +396,7 @@ function DesignPreview({ version, setVersion }) {
           </div>
           <button className="rounded-md bg-orange-500 px-3 py-2 text-xs font-semibold text-black">Save as Design</button>
         </div>
-        <EnvironmentCanvas version={version} setVersion={setVersion} />
+        <EnvironmentCanvas version={version} setVersion={setVersion} preview />
       </div>
     </section>
   )
