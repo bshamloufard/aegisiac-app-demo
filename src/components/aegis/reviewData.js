@@ -53,8 +53,6 @@ export const resources = [
   },
 ]
 
-export const versions = ['App V4', 'App V1', 'App V2', 'App V3']
-
 export const chatMessages = [
   {
     role: 'user',

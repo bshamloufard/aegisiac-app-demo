@@ -16,8 +16,8 @@ const desktopViewports = [
 ]
 
 const viewClicks = [
-  { view: 'environment', title: 'Environment', expectedText: 'Production Environment' },
-  { view: 'generate', title: 'Generate', expectedText: 'Production SQL review' },
+  { view: 'environment', title: 'Environment', expectedText: 'Infrastructure review' },
+  { view: 'generate', title: 'Generate', expectedText: 'Plan review summary' },
   { view: 'insights', title: 'Insights', expectedText: 'Mitigation' },
 ]
 
@@ -190,7 +190,7 @@ async function captureMobile(browser) {
   const metrics = await page.evaluate(() => ({
     bodyBackground: getComputedStyle(document.body).backgroundColor,
     documentBackground: getComputedStyle(document.documentElement).backgroundColor,
-    expectedTextPresent: document.body.innerText.includes('Production Environment'),
+    expectedTextPresent: document.body.innerText.includes('Infrastructure review'),
     horizontalOverflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
     viewport: {
       width: document.documentElement.clientWidth,

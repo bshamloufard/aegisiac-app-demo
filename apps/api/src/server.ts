@@ -255,17 +255,24 @@ function parsePullRequestNumber(value: number | string): number {
 }
 
 function repositoryAliases(): Record<string, string> {
-  const fallback = {
-    aw: "bshamloufard/aegisiac-demo-actions-wall",
-    app: "bshamloufard/aegisiac-app-demo"
-  };
   const configured = process.env.ISENGARD_REPO_ALIASES;
   if (!configured) {
-    return fallback;
+    return {};
   }
 
   const parsed = JSON.parse(configured) as unknown;
-  return isRecord(parsed) ? { ...fallback, ...Object.fromEntries(Object.entries(parsed).filter(([, value]) => typeof value === "string")) } : fallback;
+  if (!isRecord(parsed)) {
+    return {};
+  }
+
+  const aliases: Record<string, string> = {};
+  for (const [alias, repository] of Object.entries(parsed)) {
+    if (typeof repository === "string") {
+      aliases[alias] = repository;
+    }
+  }
+
+  return aliases;
 }
 
 function repoAliasFor(repository: string): string {
@@ -428,14 +435,17 @@ async function publishDemoGateStatus(body: DemoGateDecisionBody): Promise<Record
   }
 
   const shortTarget = body.shortRef ? parseShortPrRef(body.shortRef) : undefined;
-  const repository =
-    body.repository ??
-    shortTarget?.repository ??
-    process.env.ISENGARD_DEMO_REPOSITORY ??
-    "bshamloufard/aegisiac-demo-actions-wall";
-  const pullRequest = parsePullRequestNumber(
-    body.pullRequest ?? shortTarget?.pullRequest ?? process.env.ISENGARD_DEMO_PULL_REQUEST ?? "1"
-  );
+  const repository = body.repository ?? shortTarget?.repository ?? process.env.ISENGARD_DEMO_REPOSITORY;
+  if (!repository) {
+    throw new Error("Repository is required to update the GitHub PR gate.");
+  }
+
+  const pullRequestSource = body.pullRequest ?? shortTarget?.pullRequest ?? process.env.ISENGARD_DEMO_PULL_REQUEST;
+  if (!pullRequestSource) {
+    throw new Error("Pull request number is required to update the GitHub PR gate.");
+  }
+
+  const pullRequest = parsePullRequestNumber(pullRequestSource);
   const context = body.context ?? process.env.ISENGARD_CHECK_CONTEXT ?? "isengard/plan-review";
   const decision = body.decision ?? "pending";
   const { owner, repo } = parseRepositoryFullName(repository);
@@ -490,12 +500,18 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     time: new Date().toISOString()
   }));
 
-  app.get("/v1/demo/pr-gate", async () => ({
-    repository: process.env.ISENGARD_DEMO_REPOSITORY ?? "bshamloufard/aegisiac-demo-actions-wall",
-    pullRequest: parsePullRequestNumber(process.env.ISENGARD_DEMO_PULL_REQUEST ?? "1"),
-    context: process.env.ISENGARD_CHECK_CONTEXT ?? "isengard/plan-review",
-    approvalTokenRequired: Boolean(process.env.ISENGARD_APPROVAL_TOKEN)
-  }));
+  app.get("/v1/demo/pr-gate", async () => {
+    const pullRequest = process.env.ISENGARD_DEMO_PULL_REQUEST
+      ? parsePullRequestNumber(process.env.ISENGARD_DEMO_PULL_REQUEST)
+      : null;
+
+    return {
+      repository: process.env.ISENGARD_DEMO_REPOSITORY ?? "",
+      pullRequest,
+      context: process.env.ISENGARD_CHECK_CONTEXT ?? "isengard/plan-review",
+      approvalTokenRequired: Boolean(process.env.ISENGARD_APPROVAL_TOKEN)
+    };
+  });
 
   app.get<{ Params: PrRefParams }>("/v1/demo/pr-gate/resolve/:ref", async (request, reply) => {
     try {

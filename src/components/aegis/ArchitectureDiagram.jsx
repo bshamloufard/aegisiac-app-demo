@@ -24,8 +24,8 @@ export function ArchitectureDiagram({ compact = false }) {
     <section className="flex min-h-0 flex-1 flex-col overflow-hidden bg-[#080b0a]">
       <div className="flex h-12 shrink-0 items-center justify-between border-b border-white/10 px-4">
         <div>
-          <div className="text-sm font-semibold text-zinc-100">Production Environment</div>
-          <div className="text-xs text-zinc-500">Changed subgraph · plan 6fd9c93</div>
+          <div className="text-sm font-semibold text-zinc-100">Infrastructure review</div>
+          <div className="text-xs text-zinc-500">Changed subgraph</div>
         </div>
         <div className="flex items-center gap-2 text-zinc-500">
           <ToolButton icon={Filter} label="Filter" />

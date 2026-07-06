@@ -24,7 +24,7 @@ import {
   ZoomOut,
 } from 'lucide-react'
 import { createElement, useEffect, useState } from 'react'
-import { insights, mitigationSteps, resources, versions } from './reviewData'
+import { insights, mitigationSteps, resources } from './reviewData'
 
 const resourceIcons = {
   Cloud,
@@ -52,8 +52,8 @@ const impactRows = [
 ]
 
 const defaultGateTarget = {
-  repository: 'bshamloufard/aegisiac-demo-actions-wall',
-  pullRequest: '1',
+  repository: '',
+  pullRequest: '',
   shortRef: '',
   sha: '',
   run: '',
@@ -65,6 +65,7 @@ const defaultGateTarget = {
   changedFiles: '',
   additions: '',
   deletions: '',
+  context: '',
 }
 
 function readGateTarget() {
@@ -84,12 +85,18 @@ function readGateTarget() {
 }
 
 function githubPullRequestUrl(target) {
+  if (!target.repository || !target.pullRequest) {
+    return '#'
+  }
   return `https://github.com/${target.repository}/pull/${target.pullRequest}`
+}
+
+function reviewDisplayName(target) {
+  return target.title ? 'Pull request review' : 'Infrastructure review'
 }
 
 export function ReviewDashboard() {
   const [view, setView] = useState('environment')
-  const [version, setVersion] = useState(versions[0])
   const [gateTarget, setGateTarget] = useState(() => readGateTarget())
 
   useEffect(() => {
@@ -103,7 +110,27 @@ export function ReviewDashboard() {
   }, [])
 
   useEffect(() => {
-    if (!gateTarget.shortRef) return undefined
+    if (!gateTarget.shortRef) {
+      const controller = new AbortController()
+      fetch('/v1/demo/pr-gate', { signal: controller.signal })
+        .then((response) => {
+          if (!response.ok) throw new Error('Unable to load review context')
+          return response.json()
+        })
+        .then((payload) => {
+          setGateTarget((current) => ({
+            ...current,
+            repository: current.repository || payload.repository || '',
+            pullRequest: current.pullRequest || (payload.pullRequest ? String(payload.pullRequest) : ''),
+            context: payload.context || current.context,
+          }))
+        })
+        .catch((error) => {
+          if (error.name !== 'AbortError') console.warn(error)
+        })
+
+      return () => controller.abort()
+    }
 
     const controller = new AbortController()
     fetch(`/v1/demo/pr-gate/resolve/${encodeURIComponent(gateTarget.shortRef)}`, {
@@ -143,13 +170,13 @@ export function ReviewDashboard() {
   return (
     <div className="h-dvh overflow-hidden bg-[#0d1110] text-[#eef1ec] antialiased">
       <div className="aegis-shell fixed inset-0" />
-      <DesktopShell view={view} setView={setView} version={version} setVersion={setVersion} gateTarget={gateTarget} />
-      <MobileShell view={view} setView={setView} version={version} setVersion={setVersion} gateTarget={gateTarget} />
+      <DesktopShell view={view} setView={setView} gateTarget={gateTarget} />
+      <MobileShell view={view} setView={setView} gateTarget={gateTarget} />
     </div>
   )
 }
 
-function DesktopShell({ view, setView, version, setVersion, gateTarget }) {
+function DesktopShell({ view, setView, gateTarget }) {
   return (
     <div className="relative hidden h-dvh overflow-hidden lg:block">
       <div
@@ -158,14 +185,14 @@ function DesktopShell({ view, setView, version, setVersion, gateTarget }) {
         <Rail view={view} setView={setView} />
         {view === 'environment' && (
           <div className="grid min-h-0 grid-cols-[320px_minmax(0,1fr)]">
-            <ResourceBrowser />
-            <EnvironmentCanvas version={version} setVersion={setVersion} gateTarget={gateTarget} onOpenInsight={() => setView('insights')} />
+            <ResourceBrowser gateTarget={gateTarget} />
+            <EnvironmentCanvas gateTarget={gateTarget} onOpenInsight={() => setView('insights')} />
           </div>
         )}
         {view === 'generate' && (
           <div className="grid min-h-0 grid-cols-[minmax(390px,0.48fr)_minmax(640px,1fr)]">
             <GeneratePanel />
-            <DesignPreview version={version} setVersion={setVersion} onOpenInsight={() => setView('insights')} />
+            <DesignPreview onOpenInsight={() => setView('insights')} />
           </div>
         )}
         {view === 'insights' && <InsightView />}
@@ -175,7 +202,7 @@ function DesktopShell({ view, setView, version, setVersion, gateTarget }) {
   )
 }
 
-function MobileShell({ view, setView, version, setVersion, gateTarget }) {
+function MobileShell({ view, setView, gateTarget }) {
   return (
     <div className="relative h-dvh overflow-hidden lg:hidden">
       <header className="border-b border-[#242a32] bg-[#111418]/98 px-4 py-3">
@@ -185,13 +212,13 @@ function MobileShell({ view, setView, version, setVersion, gateTarget }) {
               <Menu className="h-5 w-5" />
             </button>
             <div className="min-w-0">
-              <div className="truncate text-base font-semibold">Production Environment</div>
+              <div className="truncate text-base font-semibold">{reviewDisplayName(gateTarget)}</div>
               <div className="truncate text-xs text-[#8f98a3]">
                 {gateTarget.title || `Isengard · PR #${gateTarget.pullRequest} blocked`}
               </div>
             </div>
           </div>
-          <VersionSelect version={version} setVersion={setVersion} compact />
+          <ReviewScopeBadge gateTarget={gateTarget} compact />
         </div>
         <div className="grid grid-cols-4 gap-2">
           {views.slice(0, 4).map((item) => (
@@ -210,8 +237,8 @@ function MobileShell({ view, setView, version, setVersion, gateTarget }) {
       <main className="h-[calc(100dvh-117px)] overflow-y-auto bg-[#0d1110]">
         {view === 'environment' && (
           <div className="min-h-full">
-            <EnvironmentCanvas mobile version={version} setVersion={setVersion} onOpenInsight={() => setView('insights')} />
-            <ResourceBrowser mobile />
+            <EnvironmentCanvas mobile onOpenInsight={() => setView('insights')} />
+            <ResourceBrowser mobile gateTarget={gateTarget} />
           </div>
         )}
         {view === 'generate' && <GeneratePanel mobile />}
@@ -258,7 +285,9 @@ function Rail({ view, setView }) {
   )
 }
 
-function ResourceBrowser({ mobile = false }) {
+function ResourceBrowser({ mobile = false, gateTarget = defaultGateTarget }) {
+  const sourceLabel = gateTarget.sha ? `Commit ${gateTarget.sha.slice(0, 7)}` : gateTarget.pullRequest ? `PR #${gateTarget.pullRequest}` : 'Current plan'
+
   return (
     <aside className={`${mobile ? 'border-t' : 'border-r'} min-h-0 border-[#242a32] bg-[#111418]/92`}>
       {!mobile && (
@@ -267,8 +296,8 @@ function ResourceBrowser({ mobile = false }) {
             <ArrowLeft className="h-5 w-5" />
           </button>
           <div className="min-w-0">
-            <div className="truncate text-lg font-semibold">Production Environment</div>
-            <div className="truncate text-xs text-[#8f98a3]">Mapped from Terraform plan 6fd9c93</div>
+            <div className="truncate text-lg font-semibold">{reviewDisplayName(gateTarget)}</div>
+            <div className="truncate text-xs text-[#8f98a3]">Mapped from {sourceLabel}</div>
           </div>
         </div>
       )}
@@ -293,7 +322,7 @@ function ResourceBrowser({ mobile = false }) {
   )
 }
 
-function EnvironmentCanvas({ version, setVersion, gateTarget = defaultGateTarget, mobile = false, onOpenInsight, preview = false }) {
+function EnvironmentCanvas({ gateTarget = defaultGateTarget, mobile = false, onOpenInsight, preview = false }) {
   if (mobile) {
     return <MobileEnvironmentCanvas onOpenInsight={onOpenInsight} />
   }
@@ -301,7 +330,7 @@ function EnvironmentCanvas({ version, setVersion, gateTarget = defaultGateTarget
   return (
     <section className="relative min-h-0 overflow-hidden bg-[#0d1110]">
       <CanvasTexture />
-      {!preview && !mobile && <CanvasTopbar version={version} setVersion={setVersion} gateTarget={gateTarget} />}
+      {!preview && !mobile && <CanvasTopbar gateTarget={gateTarget} />}
       {!preview && !mobile && <CanvasToolbar />}
       <div
         className={`${
@@ -461,27 +490,33 @@ function CanvasTexture() {
   )
 }
 
-function CanvasTopbar({ version, setVersion, gateTarget }) {
+function CanvasTopbar({ gateTarget }) {
+  const pullRequestHref = githubPullRequestUrl(gateTarget)
+  const hasPullRequestLink = pullRequestHref !== '#'
+
   return (
     <div className="absolute left-5 right-5 top-4 z-30 flex flex-wrap items-start justify-end gap-2">
       <div className="mr-auto hidden min-w-0 max-w-[520px] px-1 pt-1 xl:block">
-        <div className="truncate text-sm font-medium text-[#eef1ec]">{gateTarget.title || 'Production Environment'}</div>
+        <div className="truncate text-sm font-medium text-[#eef1ec]">{gateTarget.title || 'Infrastructure review'}</div>
         <div className="mt-0.5 flex min-w-0 items-center gap-2 text-xs text-[#8f98a3]">
-          <span className="truncate">{gateTarget.headRef || 'demo-pr'} → {gateTarget.baseRef || 'main'}</span>
+          <span className="truncate">
+            {gateTarget.headRef && gateTarget.baseRef ? `${gateTarget.headRef} → ${gateTarget.baseRef}` : 'Review context'}
+          </span>
           {gateTarget.changedFiles && <span className="shrink-0">{gateTarget.changedFiles} files</span>}
           {gateTarget.sha && <span className="shrink-0 font-mono">{gateTarget.sha.slice(0, 7)}</span>}
         </div>
       </div>
       <a
-        href={githubPullRequestUrl(gateTarget)}
-        target="_blank"
-        rel="noreferrer"
-        className="aegis-interactive shrink-0 rounded-lg border border-[#303844] bg-[#111418]/92 px-3 py-2 text-sm text-[#b7bdc8] hover:border-[#4d5a68] hover:bg-[#171b21] hover:text-[#f0f3f6]"
+        href={pullRequestHref}
+        target={hasPullRequestLink ? '_blank' : undefined}
+        rel={hasPullRequestLink ? 'noreferrer' : undefined}
+        aria-disabled={!hasPullRequestLink}
+        className="aegis-interactive flex h-10 shrink-0 items-center rounded-lg border border-[#303844] bg-[#171b21] px-3 text-sm text-[#d4dad3] shadow-sm shadow-black/20 hover:border-[#4d5a68] hover:bg-[#1c2229] hover:text-[#f0f3f6]"
       >
-        PR #{gateTarget.pullRequest}
+        {gateTarget.pullRequest ? `PR #${gateTarget.pullRequest}` : 'No PR'}
       </a>
       <GitHubGateControl gateTarget={gateTarget} />
-      <VersionSelect version={version} setVersion={setVersion} />
+      <ReviewScopeBadge gateTarget={gateTarget} />
     </div>
   )
 }
@@ -489,7 +524,7 @@ function CanvasTopbar({ version, setVersion, gateTarget }) {
 function GitHubGateControl({ gateTarget }) {
   const [state, setState] = useState('pending')
   const [busy, setBusy] = useState(null)
-  const [message, setMessage] = useState('Waiting for website approval')
+  const [message, setMessage] = useState('Waiting for approval')
 
   const submitDecision = async (decision) => {
     setBusy(decision)
@@ -529,7 +564,7 @@ function GitHubGateControl({ gateTarget }) {
   const rejected = state === 'rejected'
 
   return (
-    <div className="aegis-surface flex min-w-0 max-w-[360px] items-center gap-1 rounded-lg border p-1 backdrop-blur-xl">
+    <div className="flex h-10 min-w-0 max-w-[360px] items-center gap-1 rounded-lg border border-[#303844] bg-[#171b21] p-1 shadow-sm shadow-black/20">
       <div
         className={`hidden min-w-0 max-w-[220px] truncate px-2 text-xs xl:block ${
           state === 'error' ? 'text-[#ff9bce]' : approved ? 'text-[#7ee787]' : rejected ? 'text-[#f2cc60]' : 'text-[#8f98a3]'
@@ -573,12 +608,12 @@ function CanvasToolbar() {
   const fitToScreen = () => setZoom(86)
 
   return (
-    <div className="absolute bottom-5 left-1/2 z-30 flex -translate-x-1/2 items-center gap-1 rounded-xl border border-white/10 bg-[#151a16]/92 p-1.5 shadow-2xl shadow-black/45">
+    <div className="absolute bottom-5 left-1/2 z-30 flex h-11 -translate-x-1/2 items-center gap-1 rounded-xl border border-[#303844] bg-[#171b21] p-1 shadow-xl shadow-black/35">
       <ToolIcon icon={MousePointer2} label="Select" active />
       <ToolIcon icon={Wand2} label="Canvas assist" />
-      <div className="mx-1 h-7 w-px bg-white/10" />
+      <div className="mx-1 h-7 w-px bg-[#303844]" />
       <ToolIcon icon={ZoomOut} label="Zoom out" onClick={zoomOut} />
-      <span className="min-w-10 text-center text-xs tabular-nums text-[#8f98a3]">{zoom}%</span>
+      <span className="min-w-10 text-center text-xs tabular-nums text-[#b7bdc8]">{zoom}%</span>
       <ToolIcon icon={ZoomIn} label="Zoom in" onClick={zoomIn} />
       <ToolIcon icon={Maximize2} label="Fit to screen" onClick={fitToScreen} />
     </div>
@@ -592,8 +627,8 @@ function ToolIcon({ icon: Icon, label, active = false, onClick }) {
       onClick={onClick}
       aria-label={label}
       title={label}
-      className={`grid h-9 w-9 place-items-center rounded-lg transition active:scale-[0.96] ${
-        active ? 'bg-[#1d2a24] text-[#eef1ec]' : 'text-[#8f98a3] hover:bg-white/[0.07] hover:text-[#d4dad3]'
+      className={`aegis-interactive grid h-9 w-9 place-items-center rounded-lg active:scale-[0.96] ${
+        active ? 'bg-[#20362b] text-[#b7f7d0]' : 'text-[#8f98a3] hover:bg-[#1c2229] hover:text-[#d4dad3]'
       }`}
     >
       {createElement(Icon, { className: 'h-[18px] w-[18px]' })}
@@ -722,7 +757,7 @@ function Conversation() {
             <Wand2 className="h-4 w-4" />
           </div>
           <div>
-            <div className="text-sm font-semibold">Production SQL review</div>
+            <div className="text-sm font-semibold">Plan review summary</div>
             <div className="text-xs text-[#8f98a3]">High availability and reliability</div>
           </div>
         </div>
@@ -739,20 +774,20 @@ function ChatBubble({ children, side }) {
   )
 }
 
-function DesignPreview({ version, setVersion, onOpenInsight }) {
+function DesignPreview({ onOpenInsight }) {
   return (
     <section className="min-h-0 bg-[#0d1110] p-5">
       <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border border-[#242a32] bg-[#111418]">
         <div className="flex h-14 items-center justify-between border-b border-[#242a32] px-5">
           <div className="flex items-center gap-3">
-            <div className="text-sm font-semibold">SQL Server</div>
-            <VersionSelect version={version} setVersion={setVersion} />
+            <div className="text-sm font-semibold">Generated plan view</div>
+            <span className="rounded-md bg-[#1d2a24] px-2 py-1 text-xs font-medium text-[#b7f7d0]">Current PR</span>
           </div>
           <button className="aegis-interactive rounded-lg bg-[#f2cc60] px-3 py-2 text-xs font-semibold text-[#11100d] hover:bg-[#ffe08a] active:scale-[0.98]">
             Save as Design
           </button>
         </div>
-        <EnvironmentCanvas version={version} setVersion={setVersion} preview onOpenInsight={onOpenInsight} />
+        <EnvironmentCanvas preview onOpenInsight={onOpenInsight} />
       </div>
     </section>
   )
@@ -920,38 +955,20 @@ function TreeBadge({ value }) {
   )
 }
 
-function VersionSelect({ version, setVersion, compact = false }) {
-  const [open, setOpen] = useState(false)
+function ReviewScopeBadge({ gateTarget, compact = false }) {
+  const label = gateTarget.changedFiles ? `${gateTarget.changedFiles} files` : 'Plan'
+  const detail = gateTarget.context || 'Review gate'
+
   return (
-    <div className="relative">
-      <button
-        onClick={() => setOpen((value) => !value)}
-        className={`aegis-interactive flex h-10 items-center justify-between gap-3 rounded-lg border border-[#303844] bg-[#111418]/92 px-3 text-sm text-[#f0f3f6] hover:border-[#4d5a68] hover:bg-[#171b21] ${
-          compact ? 'min-w-[106px]' : 'min-w-[132px]'
-        }`}
-      >
-        {version}
-        <ChevronDown className={`h-4 w-4 transition ${open ? 'rotate-180' : ''}`} />
-      </button>
-      {open && (
-        <div className="aegis-surface absolute right-0 z-50 mt-2 w-[190px] overflow-hidden rounded-xl border p-2 backdrop-blur-xl">
-          {versions.map((item) => (
-            <button
-              key={item}
-              onClick={() => {
-                setVersion(item)
-                setOpen(false)
-              }}
-              className={`aegis-interactive flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left text-sm ${
-                item === version ? 'bg-[#1d2a24] text-[#f0f3f6]' : 'text-[#b7bdc8] hover:bg-white/10'
-              }`}
-            >
-              {item === version && <Check className="h-4 w-4" />}
-              <span className={item === version ? '' : 'ml-7'}>{item}</span>
-            </button>
-          ))}
-        </div>
-      )}
+    <div
+      className={`flex h-10 shrink-0 items-center gap-3 rounded-lg border border-[#303844] bg-[#171b21] px-3 text-sm text-[#f0f3f6] shadow-sm shadow-black/20 ${
+        compact ? 'min-w-[118px] justify-center' : 'min-w-[154px]'
+      }`}
+      title={detail}
+    >
+      <Layers className="h-4 w-4 text-[#79c0ff]" />
+      <span className="font-medium">{label}</span>
+      {!compact && <span className="max-w-[82px] truncate text-xs text-[#8f98a3]">{detail}</span>}
     </div>
   )
 }

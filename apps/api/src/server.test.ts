@@ -3,11 +3,13 @@ import { buildApp } from "./server.js";
 
 const originalGithubToken = process.env.GITHUB_TOKEN;
 const originalIsengardGithubToken = process.env.ISENGARD_GITHUB_TOKEN;
+const originalRepoAliases = process.env.ISENGARD_REPO_ALIASES;
 
 describe("API server", () => {
   beforeEach(() => {
     delete process.env.GITHUB_TOKEN;
     delete process.env.ISENGARD_GITHUB_TOKEN;
+    process.env.ISENGARD_REPO_ALIASES = JSON.stringify({ aw: "bshamloufard/aegisiac-demo-actions-wall" });
   });
 
   afterEach(() => {
@@ -21,6 +23,12 @@ describe("API server", () => {
       delete process.env.ISENGARD_GITHUB_TOKEN;
     } else {
       process.env.ISENGARD_GITHUB_TOKEN = originalIsengardGithubToken;
+    }
+
+    if (originalRepoAliases === undefined) {
+      delete process.env.ISENGARD_REPO_ALIASES;
+    } else {
+      process.env.ISENGARD_REPO_ALIASES = originalRepoAliases;
     }
   });
 
