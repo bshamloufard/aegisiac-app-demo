@@ -13,6 +13,22 @@ export default {
         sm: "calc(var(--radius) - 4px)",
       },
       colors: {
+        aegis: {
+          bg: "rgb(var(--aegis-bg) / <alpha-value>)",
+          elevated: "rgb(var(--aegis-bg-elevated) / <alpha-value>)",
+          solid: "rgb(var(--aegis-bg-solid) / <alpha-value>)",
+          surface: "rgb(var(--aegis-surface) / <alpha-value>)",
+          border: "rgb(var(--aegis-border) / <alpha-value>)",
+          "border-strong": "rgb(var(--aegis-border-strong) / <alpha-value>)",
+          text: "rgb(var(--aegis-text) / <alpha-value>)",
+          "text-soft": "rgb(var(--aegis-text-soft) / <alpha-value>)",
+          "text-muted": "rgb(var(--aegis-text-muted) / <alpha-value>)",
+          "text-faint": "rgb(var(--aegis-text-faint) / <alpha-value>)",
+          accent: "rgb(var(--aegis-accent) / <alpha-value>)",
+          blue: "rgb(var(--aegis-accent-blue) / <alpha-value>)",
+          success: "rgb(var(--aegis-accent-success) / <alpha-value>)",
+          danger: "rgb(var(--aegis-accent-danger) / <alpha-value>)",
+        },
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
         card: {
@@ -58,4 +74,3 @@ export default {
   },
   plugins: [],
 }
-

@@ -4,6 +4,24 @@
 
 @layer base {
   :root {
+    --aegis-bg: 14 16 19;
+    --aegis-bg-elevated: 17 20 24;
+    --aegis-bg-solid: 23 27 33;
+    --aegis-surface: 19 23 28;
+    --aegis-border: 36 42 50;
+    --aegis-border-strong: 48 56 68;
+    --aegis-text: 238 241 236;
+    --aegis-text-soft: 212 218 211;
+    --aegis-text-muted: 143 152 163;
+    --aegis-text-faint: 101 108 118;
+    --aegis-accent: 242 204 96;
+    --aegis-accent-blue: 121 192 255;
+    --aegis-accent-success: 126 231 135;
+    --aegis-accent-danger: 255 155 206;
+    --aegis-group-tenant: 139 233 220;
+    --aegis-group-subscription: 242 204 96;
+    --aegis-group-account: 210 168 255;
+    --aegis-group-network: 126 231 135;
     --background: 0 0% 100%;
     --foreground: 222.2 84% 4.9%;
     --card: 0 0% 100%;
@@ -64,7 +82,7 @@
   body,
   #root {
     min-height: 100%;
-    background: #090d0c;
+    background: rgb(var(--aegis-bg));
     overscroll-behavior: none;
   }
 
@@ -77,8 +95,8 @@
   }
   body {
     margin: 0;
-    background: #0d1110;
-    color: #eef1ec;
+    background: rgb(var(--aegis-bg));
+    color: rgb(var(--aegis-text));
     font-family:
       ui-sans-serif,
       system-ui,
@@ -93,40 +111,28 @@
 
 @layer components {
   .aegis-shell {
-    background:
-      radial-gradient(circle at 18% 14%, rgb(86 124 111 / 0.18), transparent 34%),
-      radial-gradient(circle at 82% 78%, rgb(182 128 94 / 0.1), transparent 30%),
-      linear-gradient(135deg, #131b18 0%, #0d1110 48%, #090d0c 100%);
+    background: rgb(var(--aegis-bg));
   }
 
   .aegis-grid {
     background-image:
-      radial-gradient(circle, rgb(169 190 181 / 0.2) 1px, transparent 1.5px),
-      linear-gradient(rgb(169 190 181 / 0.055) 1px, transparent 1px),
-      linear-gradient(90deg, rgb(169 190 181 / 0.055) 1px, transparent 1px);
-    background-position: 0 0, 0 0, 0 0;
-    background-size: 24px 24px, 144px 144px, 144px 144px;
-    mask-image: radial-gradient(circle at 50% 35%, black 0%, black 58%, transparent 100%);
-  }
-
-  .aegis-grid-drift {
-    background:
-      linear-gradient(90deg, transparent 0%, rgb(168 214 198 / 0.08) 42%, transparent 70%),
-      radial-gradient(circle at 50% 50%, rgb(239 166 111 / 0.08), transparent 36%);
-    animation: aegis-canvas-drift 18s ease-in-out infinite alternate;
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Ccircle cx='1' cy='1' r='1' fill='%233c4650' fill-opacity='0.52'/%3E%3C/svg%3E"),
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='144' height='144' viewBox='0 0 144 144'%3E%3Cpath d='M0 .5H144M.5 0V144' stroke='%23242a32' stroke-opacity='0.5'/%3E%3C/svg%3E");
+    background-position: 0 0, 0 0;
+    background-size: 24px 24px, 144px 144px;
   }
 
   .aegis-surface {
-    background: rgb(19 26 24 / 0.88);
-    border-color: rgb(189 210 198 / 0.12);
+    background: rgb(var(--aegis-surface) / 0.94);
+    border-color: rgb(var(--aegis-border));
     box-shadow:
       inset 0 1px 0 rgb(255 255 255 / 0.035),
       0 18px 44px rgb(0 0 0 / 0.28);
   }
 
   .aegis-panel {
-    background: rgb(15 20 18 / 0.94);
-    border-color: rgb(189 210 198 / 0.11);
+    background: rgb(var(--aegis-bg-elevated) / 0.94);
+    border-color: rgb(var(--aegis-border));
   }
 
   .aegis-interactive {
@@ -138,22 +144,7 @@
       opacity 180ms ease;
   }
 
-  @keyframes aegis-canvas-drift {
-    0% {
-      transform: translate3d(-6%, -3%, 0) scale(1);
-      opacity: 0.42;
-    }
-    100% {
-      transform: translate3d(8%, 5%, 0) scale(1.08);
-      opacity: 0.68;
-    }
-  }
-
   @media (prefers-reduced-motion: reduce) {
-    .aegis-grid-drift {
-      animation: none;
-    }
-
     .aegis-interactive {
       transition-duration: 1ms;
     }

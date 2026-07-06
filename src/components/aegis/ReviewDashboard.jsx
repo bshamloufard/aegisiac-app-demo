@@ -23,7 +23,7 @@ import {
   ZoomIn,
   ZoomOut,
 } from 'lucide-react'
-import { createElement, useEffect, useState } from 'react'
+import { createElement, useEffect, useRef, useState } from 'react'
 import { insights, mitigationSteps, resources } from './reviewData'
 
 const resourceIcons = {
@@ -66,6 +66,27 @@ const defaultGateTarget = {
   additions: '',
   deletions: '',
   context: '',
+}
+
+const canvasViewportDefault = {
+  x: 42,
+  y: 104,
+  zoom: 0.68,
+}
+
+const canvasContentWidth = 1420
+
+function fitCanvasViewport(width) {
+  const zoom = clamp((width - 84) / canvasContentWidth, 0.62, 0.86)
+  return {
+    x: Math.max(42, Math.round((width - canvasContentWidth * zoom) / 2)),
+    y: 104,
+    zoom,
+  }
+}
+
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value))
 }
 
 function readGateTarget() {
@@ -168,7 +189,7 @@ export function ReviewDashboard() {
   }, [gateTarget.shortRef])
 
   return (
-    <div className="h-dvh overflow-hidden bg-[#0d1110] text-[#eef1ec] antialiased">
+    <div className="h-dvh overflow-hidden bg-aegis-bg text-aegis-text antialiased">
       <div className="aegis-shell fixed inset-0" />
       <DesktopShell view={view} setView={setView} gateTarget={gateTarget} />
       <MobileShell view={view} setView={setView} gateTarget={gateTarget} />
@@ -180,7 +201,7 @@ function DesktopShell({ view, setView, gateTarget }) {
   return (
     <div className="relative hidden h-dvh overflow-hidden lg:block">
       <div
-        className="grid h-full w-full grid-cols-[64px_minmax(0,1fr)] overflow-hidden border border-white/10 bg-[#0d1110]/95 shadow-2xl shadow-black/70"
+        className="grid h-full w-full grid-cols-[64px_minmax(0,1fr)] overflow-hidden border border-aegis-border bg-aegis-bg/95 shadow-2xl shadow-black/70"
       >
         <Rail view={view} setView={setView} />
         {view === 'environment' && (
@@ -205,7 +226,7 @@ function DesktopShell({ view, setView, gateTarget }) {
 function MobileShell({ view, setView, gateTarget }) {
   return (
     <div className="relative h-dvh overflow-hidden lg:hidden">
-      <header className="border-b border-[#242a32] bg-[#111418]/98 px-4 py-3">
+      <header className="border-b border-aegis-border bg-aegis-elevated/98 px-4 py-3">
         <div className="mb-4 flex items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
             <button aria-label="Open menu" className="grid h-11 w-11 shrink-0 place-items-center rounded-lg border border-white/10 bg-white/[0.035]">
@@ -213,7 +234,7 @@ function MobileShell({ view, setView, gateTarget }) {
             </button>
             <div className="min-w-0">
               <div className="truncate text-base font-semibold">{reviewDisplayName(gateTarget)}</div>
-              <div className="truncate text-xs text-[#8f98a3]">
+              <div className="truncate text-xs text-aegis-text-muted">
                 {gateTarget.title || `Isengard · PR #${gateTarget.pullRequest} blocked`}
               </div>
             </div>
@@ -226,7 +247,7 @@ function MobileShell({ view, setView, gateTarget }) {
               key={item.id}
               onClick={() => setView(item.id)}
               className={`h-10 rounded-lg px-2 text-xs font-medium transition ${
-                view === item.id ? 'bg-[#eef1ec] text-[#0b0d10]' : 'bg-white/[0.055] text-[#8f98a3] hover:bg-white/10 hover:text-[#d4dad3]'
+                view === item.id ? 'bg-aegis-text text-aegis-bg' : 'bg-white/[0.055] text-aegis-text-muted hover:bg-white/10 hover:text-aegis-text-soft'
               }`}
             >
               {item.label}
@@ -234,7 +255,7 @@ function MobileShell({ view, setView, gateTarget }) {
           ))}
         </div>
       </header>
-      <main className="h-[calc(100dvh-117px)] overflow-y-auto bg-[#0d1110]">
+      <main className="h-[calc(100dvh-117px)] overflow-y-auto bg-aegis-bg">
         {view === 'environment' && (
           <div className="min-h-full">
             <EnvironmentCanvas mobile onOpenInsight={() => setView('insights')} />
@@ -251,11 +272,11 @@ function MobileShell({ view, setView, gateTarget }) {
 
 function Rail({ view, setView }) {
   return (
-    <aside className="flex min-h-0 flex-col items-center border-r border-[#242a32] bg-[#0b0f0e]/96 px-3 py-5">
+    <aside className="flex min-h-0 flex-col items-center border-r border-aegis-border bg-aegis-bg/96 px-3 py-5">
       <button
         aria-label="Open Isengard home"
         onClick={() => setView('environment')}
-        className="aegis-interactive mb-7 grid h-9 w-9 place-items-center rounded-lg text-[#eef1ec] hover:bg-white/[0.06]"
+        className="aegis-interactive mb-7 grid h-9 w-9 place-items-center rounded-lg text-aegis-text hover:bg-white/[0.06]"
       >
         <Sparkles className="h-5 w-5" />
       </button>
@@ -270,15 +291,15 @@ function Rail({ view, setView }) {
               title={item.label}
               aria-label={item.label}
               className={`aegis-interactive group flex h-9 w-9 items-center justify-center rounded-lg text-sm font-medium active:scale-[0.98] ${
-                active ? 'bg-[#1d2a24] text-[#eef1ec] ring-1 ring-[#314138]' : 'text-[#8f98a3] hover:bg-white/[0.045] hover:text-[#d4dad3]'
+                active ? 'bg-aegis-solid text-aegis-text ring-1 ring-aegis-border-strong' : 'text-aegis-text-muted hover:bg-white/[0.045] hover:text-aegis-text-soft'
               }`}
             >
-              <Icon className={`h-4 w-4 ${active ? 'text-[#b7f7d0]' : ''}`} />
+              <Icon className={`h-4 w-4 ${active ? 'text-aegis-success' : ''}`} />
             </button>
           )
         })}
       </nav>
-      <div className="grid h-8 w-8 place-items-center rounded-lg bg-[#314138] text-xs font-bold text-[#b7f7d0]">
+      <div className="grid h-8 w-8 place-items-center rounded-lg bg-aegis-solid text-xs font-bold text-aegis-success">
         I
       </div>
     </aside>
@@ -289,31 +310,31 @@ function ResourceBrowser({ mobile = false, gateTarget = defaultGateTarget }) {
   const sourceLabel = gateTarget.sha ? `Commit ${gateTarget.sha.slice(0, 7)}` : gateTarget.pullRequest ? `PR #${gateTarget.pullRequest}` : 'Current plan'
 
   return (
-    <aside className={`${mobile ? 'border-t' : 'border-r'} min-h-0 border-[#242a32] bg-[#111418]/92`}>
+    <aside className={`${mobile ? 'border-t' : 'border-r'} min-h-0 border-aegis-border bg-aegis-elevated/92`}>
       {!mobile && (
-        <div className="flex h-[72px] items-center gap-4 border-b border-[#242a32] px-5">
-          <button aria-label="Back to published designs" className="aegis-interactive grid h-9 w-9 place-items-center rounded-lg text-[#8f98a3] hover:bg-white/[0.06] hover:text-[#f0f3f6]">
+        <div className="flex h-[72px] items-center gap-4 border-b border-aegis-border px-5">
+          <button aria-label="Back to published designs" className="aegis-interactive grid h-9 w-9 place-items-center rounded-lg text-aegis-text-muted hover:bg-white/[0.06] hover:text-aegis-text">
             <ArrowLeft className="h-5 w-5" />
           </button>
           <div className="min-w-0">
             <div className="truncate text-lg font-semibold">{reviewDisplayName(gateTarget)}</div>
-            <div className="truncate text-xs text-[#8f98a3]">Mapped from {sourceLabel}</div>
+            <div className="truncate text-xs text-aegis-text-muted">Mapped from {sourceLabel}</div>
           </div>
         </div>
       )}
-      <div className="border-b border-[#242a32] p-4">
-        <label className="aegis-interactive flex h-11 items-center gap-3 rounded-lg border border-[#303844] bg-[#07090c]/55 px-3 focus-within:border-[#79c0ff]/70">
-          <Search className="h-[18px] w-[18px] text-[#8f98a3]" />
-          <input className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-[#656c76]" placeholder="Search resources..." />
-          <Activity className="h-4 w-4 text-[#8f98a3]" />
+      <div className="border-b border-aegis-border p-4">
+        <label className="aegis-interactive flex h-11 items-center gap-3 rounded-lg border border-aegis-border-strong bg-aegis-bg/55 px-3 focus-within:border-aegis-blue/70">
+          <Search className="h-[18px] w-[18px] text-aegis-text-muted" />
+          <input className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-aegis-text-faint" placeholder="Search resources..." />
+          <Activity className="h-4 w-4 text-aegis-text-muted" />
         </label>
       </div>
       <div className="flex items-center justify-between px-5 py-4">
         <div>
           <div className="text-sm font-semibold">Resources</div>
-          <div className="mt-1 text-xs text-[#656c76]">Groups mirror the canvas hierarchy</div>
+          <div className="mt-1 text-xs text-aegis-text-faint">Groups mirror the canvas hierarchy</div>
         </div>
-        <Layers className="h-5 w-5 text-[#8f98a3]" />
+        <Layers className="h-5 w-5 text-aegis-text-muted" />
       </div>
       <div className={`${mobile ? 'max-h-[420px]' : 'h-[calc(100%-206px)]'} overflow-y-auto px-4 pb-5`}>
         <ResourceTree items={resources} level={0} />
@@ -323,21 +344,127 @@ function ResourceBrowser({ mobile = false, gateTarget = defaultGateTarget }) {
 }
 
 function EnvironmentCanvas({ gateTarget = defaultGateTarget, mobile = false, onOpenInsight, preview = false }) {
+  const [viewport, setViewport] = useState(canvasViewportDefault)
+  const dragRef = useRef(null)
+  const canvasFrameRef = useRef(null)
+  const resetViewportRef = useRef(canvasViewportDefault)
+
+  useEffect(() => {
+    if (mobile || preview || !canvasFrameRef.current) return undefined
+
+    const frame = canvasFrameRef.current
+    const syncInitialViewport = () => {
+      const nextViewport = fitCanvasViewport(frame.clientWidth)
+      resetViewportRef.current = nextViewport
+      setViewport((current) => {
+        const hasNotMoved =
+          Math.abs(current.x - canvasViewportDefault.x) < 1 &&
+          Math.abs(current.y - canvasViewportDefault.y) < 1 &&
+          Math.abs(current.zoom - canvasViewportDefault.zoom) < 0.01
+
+        return hasNotMoved ? nextViewport : current
+      })
+    }
+
+    syncInitialViewport()
+    const observer = new ResizeObserver(syncInitialViewport)
+    observer.observe(frame)
+
+    return () => observer.disconnect()
+  }, [mobile, preview])
+
   if (mobile) {
     return <MobileEnvironmentCanvas onOpenInsight={onOpenInsight} />
   }
 
+  const setZoom = (nextZoom) => {
+    setViewport((current) => ({
+      ...current,
+      zoom: clamp(typeof nextZoom === 'function' ? nextZoom(current.zoom) : nextZoom, 0.48, 1.55),
+    }))
+  }
+
+  const resetViewport = () => setViewport(resetViewportRef.current)
+
+  const handlePointerDown = (event) => {
+    if (preview || event.button !== 0 || event.target.closest('button, a, input, [data-canvas-ui="true"]')) return
+    event.preventDefault()
+    event.currentTarget.setPointerCapture(event.pointerId)
+    dragRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      originX: viewport.x,
+      originY: viewport.y,
+    }
+  }
+
+  const handlePointerMove = (event) => {
+    const drag = dragRef.current
+    if (!drag || drag.pointerId !== event.pointerId) return
+    setViewport((current) => ({
+      ...current,
+      x: drag.originX + event.clientX - drag.startX,
+      y: drag.originY + event.clientY - drag.startY,
+    }))
+  }
+
+  const stopDragging = (event) => {
+    if (dragRef.current?.pointerId === event.pointerId) {
+      dragRef.current = null
+    }
+  }
+
+  const handleWheel = (event) => {
+    if (preview) return
+    event.preventDefault()
+    const rect = event.currentTarget.getBoundingClientRect()
+    const focusX = event.clientX - rect.left
+    const focusY = event.clientY - rect.top
+    const multiplier = event.deltaY > 0 ? 0.92 : 1.08
+
+    setViewport((current) => {
+      const zoom = clamp(current.zoom * multiplier, 0.48, 1.55)
+      const contentX = (focusX - current.x) / current.zoom
+      const contentY = (focusY - current.y) / current.zoom
+
+      return {
+        zoom,
+        x: focusX - contentX * zoom,
+        y: focusY - contentY * zoom,
+      }
+    })
+  }
+
   return (
-    <section className="relative min-h-0 overflow-hidden bg-[#0d1110]">
-      <CanvasTexture />
+    <section className="relative min-h-0 select-none overflow-hidden bg-aegis-bg">
+      <CanvasTexture viewport={preview ? canvasViewportDefault : viewport} />
       {!preview && !mobile && <CanvasTopbar gateTarget={gateTarget} />}
-      {!preview && !mobile && <CanvasToolbar />}
+      {!preview && !mobile && <CanvasToolbar viewport={viewport} onZoom={setZoom} onReset={resetViewport} />}
       <div
-        className={`${
-          preview ? 'h-[760px] w-[1160px] origin-top-left scale-[0.78]' : 'flex h-full min-h-[720px] w-full items-start justify-center px-10 pb-24 pt-[104px]'
-        } relative`}
+        ref={canvasFrameRef}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={stopDragging}
+        onPointerCancel={stopDragging}
+        onWheel={handleWheel}
+        className={`relative ${
+          preview ? 'h-[760px] w-[1160px] origin-top-left scale-[0.78]' : 'h-full min-h-[720px] w-full cursor-grab touch-none active:cursor-grabbing'
+        }`}
       >
-        <DesktopArchitectureLayout preview={preview} onOpenInsight={onOpenInsight} />
+        <div
+          className={preview ? 'relative' : 'absolute left-0 top-0 will-change-transform'}
+          style={
+            preview
+              ? undefined
+              : {
+                  transform: `translate3d(${viewport.x}px, ${viewport.y}px, 0) scale(${viewport.zoom})`,
+                  transformOrigin: '0 0',
+                }
+          }
+        >
+          <DesktopArchitectureLayout preview={preview} onOpenInsight={onOpenInsight} />
+        </div>
       </div>
     </section>
   )
@@ -349,7 +476,7 @@ function DesktopArchitectureLayout({ preview = false, onOpenInsight }) {
       icon={Home}
       label="Tenant"
       tone="teal"
-      className={`${preview ? 'm-10 min-h-[610px] w-[1120px]' : 'min-h-[585px] w-full max-w-[1420px]'} px-12 pb-12 pt-14`}
+      className={`${preview ? 'm-10 min-h-[610px] w-[1120px]' : 'min-h-[585px] w-[1420px]'} px-12 pb-12 pt-14`}
     >
       <div className="pointer-events-none absolute left-[43%] right-[35%] top-[318px] z-[2] h-px bg-zinc-500/30" />
       <div className="relative z-10 grid grid-cols-[minmax(420px,1fr)_minmax(420px,1fr)] items-start gap-10">
@@ -414,7 +541,7 @@ function DesktopArchitectureLayout({ preview = false, onOpenInsight }) {
 
 function MobileEnvironmentCanvas({ onOpenInsight }) {
   return (
-    <section className="relative h-[530px] overflow-hidden border-b border-[#242a32] bg-[#0d1110] p-4">
+    <section className="relative h-[530px] overflow-hidden border-b border-aegis-border bg-aegis-bg p-4">
       <CanvasTexture />
       <div className="relative h-full rounded-xl border border-[rgb(139_233_220/0.35)] bg-[rgb(17_20_24/0.45)] p-4">
         <CanvasLabel icon={Home} label="Tenant" className="-top-2 left-5" />
@@ -453,8 +580,8 @@ function MobileEnvironmentCanvas({ onOpenInsight }) {
 
 function CanvasLabel({ icon: Icon, label, className }) {
   return (
-    <div className={`absolute flex w-fit items-center gap-1.5 bg-[#0d1110] px-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#8f98a3] ${className}`}>
-      {createElement(Icon, { className: 'h-3.5 w-3.5 text-[#f2cc60]' })}
+    <div className={`absolute flex w-fit items-center gap-1.5 bg-aegis-bg px-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-aegis-text-muted ${className}`}>
+      {createElement(Icon, { className: 'h-3.5 w-3.5 text-aegis-accent' })}
       {label}
     </div>
   )
@@ -480,12 +607,16 @@ function MobileNode({ icon: Icon, label, badge, risk = false, compact = false, o
   )
 }
 
-function CanvasTexture() {
+function CanvasTexture({ viewport = canvasViewportDefault }) {
   return (
     <>
-      <div className="aegis-grid absolute inset-0 opacity-65" />
-      <div className="aegis-grid-drift absolute -inset-32" />
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_20%,transparent_0%,rgb(13_17_16/0.18)_56%,rgb(13_17_16/0.72)_100%)]" />
+      <div
+        className="aegis-grid absolute inset-0 opacity-70"
+        style={{
+          backgroundPosition: `${viewport.x}px ${viewport.y}px`,
+          backgroundSize: `${24 * viewport.zoom}px ${24 * viewport.zoom}px, ${144 * viewport.zoom}px ${144 * viewport.zoom}px`,
+        }}
+      />
     </>
   )
 }
@@ -497,8 +628,8 @@ function CanvasTopbar({ gateTarget }) {
   return (
     <div className="absolute left-5 right-5 top-4 z-30 flex flex-wrap items-start justify-end gap-2">
       <div className="mr-auto hidden min-w-0 max-w-[520px] px-1 pt-1 xl:block">
-        <div className="truncate text-sm font-medium text-[#eef1ec]">{gateTarget.title || 'Infrastructure review'}</div>
-        <div className="mt-0.5 flex min-w-0 items-center gap-2 text-xs text-[#8f98a3]">
+        <div className="truncate text-sm font-medium text-aegis-text">{gateTarget.title || 'Infrastructure review'}</div>
+        <div className="mt-0.5 flex min-w-0 items-center gap-2 text-xs text-aegis-text-muted">
           <span className="truncate">
             {gateTarget.headRef && gateTarget.baseRef ? `${gateTarget.headRef} → ${gateTarget.baseRef}` : 'Review context'}
           </span>
@@ -511,7 +642,7 @@ function CanvasTopbar({ gateTarget }) {
         target={hasPullRequestLink ? '_blank' : undefined}
         rel={hasPullRequestLink ? 'noreferrer' : undefined}
         aria-disabled={!hasPullRequestLink}
-        className="aegis-interactive flex h-10 shrink-0 items-center rounded-lg border border-[#303844] bg-[#171b21] px-3 text-sm text-[#d4dad3] shadow-sm shadow-black/20 hover:border-[#4d5a68] hover:bg-[#1c2229] hover:text-[#f0f3f6]"
+        className="aegis-interactive flex h-10 shrink-0 items-center rounded-lg border border-aegis-border-strong bg-aegis-solid px-3 text-sm text-aegis-text-soft shadow-sm shadow-black/20 hover:border-aegis-border-strong hover:bg-aegis-surface hover:text-aegis-text"
       >
         {gateTarget.pullRequest ? `PR #${gateTarget.pullRequest}` : 'No PR'}
       </a>
@@ -564,10 +695,10 @@ function GitHubGateControl({ gateTarget }) {
   const rejected = state === 'rejected'
 
   return (
-    <div className="flex h-10 min-w-0 max-w-[360px] items-center gap-1 rounded-lg border border-[#303844] bg-[#171b21] p-1 shadow-sm shadow-black/20">
+    <div className="flex h-10 min-w-0 max-w-[360px] items-center gap-1 rounded-lg border border-aegis-border-strong bg-aegis-solid p-1 shadow-sm shadow-black/20">
       <div
         className={`hidden min-w-0 max-w-[220px] truncate px-2 text-xs xl:block ${
-          state === 'error' ? 'text-[#ff9bce]' : approved ? 'text-[#7ee787]' : rejected ? 'text-[#f2cc60]' : 'text-[#8f98a3]'
+          state === 'error' ? 'text-aegis-danger' : approved ? 'text-aegis-success' : rejected ? 'text-aegis-accent' : 'text-aegis-text-muted'
         }`}
         title={message}
       >
@@ -601,21 +732,20 @@ function GitHubGateControl({ gateTarget }) {
   )
 }
 
-function CanvasToolbar() {
-  const [zoom, setZoom] = useState(86)
-  const zoomOut = () => setZoom((value) => Math.max(50, value - 10))
-  const zoomIn = () => setZoom((value) => Math.min(140, value + 10))
-  const fitToScreen = () => setZoom(86)
+function CanvasToolbar({ viewport, onZoom, onReset }) {
+  const zoom = Math.round(viewport.zoom * 100)
+  const zoomOut = () => onZoom((value) => value - 0.1)
+  const zoomIn = () => onZoom((value) => value + 0.1)
 
   return (
-    <div className="absolute bottom-5 left-1/2 z-30 flex h-11 -translate-x-1/2 items-center gap-1 rounded-xl border border-[#303844] bg-[#171b21] p-1 shadow-xl shadow-black/35">
+    <div data-canvas-ui="true" className="absolute bottom-5 left-1/2 z-30 flex h-11 -translate-x-1/2 items-center gap-1 rounded-xl border border-aegis-border-strong bg-aegis-solid p-1 shadow-xl shadow-black/35">
       <ToolIcon icon={MousePointer2} label="Select" active />
       <ToolIcon icon={Wand2} label="Canvas assist" />
-      <div className="mx-1 h-7 w-px bg-[#303844]" />
+      <div className="mx-1 h-7 w-px bg-aegis-border-strong" />
       <ToolIcon icon={ZoomOut} label="Zoom out" onClick={zoomOut} />
-      <span className="min-w-10 text-center text-xs tabular-nums text-[#b7bdc8]">{zoom}%</span>
+      <span className="min-w-10 text-center text-xs tabular-nums text-aegis-text-soft">{zoom}%</span>
       <ToolIcon icon={ZoomIn} label="Zoom in" onClick={zoomIn} />
-      <ToolIcon icon={Maximize2} label="Fit to screen" onClick={fitToScreen} />
+      <ToolIcon icon={Maximize2} label="Fit to screen" onClick={onReset} />
     </div>
   )
 }
@@ -628,7 +758,7 @@ function ToolIcon({ icon: Icon, label, active = false, onClick }) {
       aria-label={label}
       title={label}
       className={`aegis-interactive grid h-9 w-9 place-items-center rounded-lg active:scale-[0.96] ${
-        active ? 'bg-[#20362b] text-[#b7f7d0]' : 'text-[#8f98a3] hover:bg-[#1c2229] hover:text-[#d4dad3]'
+        active ? 'bg-aegis-surface text-aegis-success' : 'text-aegis-text-muted hover:bg-aegis-surface hover:text-aegis-text-soft'
       }`}
     >
       {createElement(Icon, { className: 'h-[18px] w-[18px]' })}
@@ -646,8 +776,8 @@ function DiagramGroup({ icon: Icon, label, tone, dashed = false, className = '',
 
   return (
     <section className={`relative rounded-xl border ${toneClass} ${dashed ? 'border-dashed' : ''} bg-[rgb(17_20_24/0.18)] ${className}`}>
-      <div className="absolute -top-3 left-6 flex w-fit items-center gap-1.5 bg-[#0d1110] px-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#8f98a3]">
-        {createElement(Icon, { className: 'h-3.5 w-3.5 text-[#f2cc60]' })}
+      <div className="absolute -top-3 left-6 flex w-fit items-center gap-1.5 bg-aegis-bg px-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-aegis-text-muted">
+        {createElement(Icon, { className: 'h-3.5 w-3.5 text-aegis-accent' })}
         {label}
       </div>
       {children}

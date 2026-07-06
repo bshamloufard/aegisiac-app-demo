@@ -38,8 +38,7 @@ export function ArchitectureDiagram({ compact = false }) {
 
       <div className="min-h-0 flex-1 overflow-auto">
         <div className={cn('relative min-w-[780px] p-8', compact ? 'h-[540px]' : 'h-full min-h-[620px]')}>
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.10)_1px,transparent_1.5px)] bg-[length:28px_28px] opacity-25" />
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_22%_8%,rgba(20,184,166,0.10),transparent_30%)]" />
+          <div className="aegis-grid absolute inset-0 opacity-50" />
 
           <Boundary label="Tenant" className="inset-x-8 top-8 h-[535px] border-teal-300/50" icon={Box} />
           <Boundary label="Subscription" className="left-[80px] top-[98px] h-[415px] w-[665px] border-yellow-400/50" icon={Cloud} />
