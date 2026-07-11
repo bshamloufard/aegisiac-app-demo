@@ -421,7 +421,12 @@ function EnvironmentCanvas({ gateTarget = defaultGateTarget, mobile = false, onO
     const rect = event.currentTarget.getBoundingClientRect()
     const focusX = event.clientX - rect.left
     const focusY = event.clientY - rect.top
-    const multiplier = event.deltaY > 0 ? 0.92 : 1.08
+
+    // Scale by delta magnitude so trackpads feel gradual instead of ±8% per event.
+    let delta = event.deltaY
+    if (event.deltaMode === 1) delta *= 16
+    if (event.deltaMode === 2) delta *= event.currentTarget.clientHeight
+    const multiplier = Math.exp(-delta * 0.00115)
 
     setViewport((current) => {
       const zoom = clamp(current.zoom * multiplier, 0.48, 1.55)
